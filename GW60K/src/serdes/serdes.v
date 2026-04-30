@@ -6,7 +6,7 @@
 //Part Number: GW5AT-LV60PG484AC2/I1
 //Device: GW5AT-60
 //Device Version: B
-//Created Time: Thu Apr 30 16:39:59 2026
+//Created Time: Thu Apr 30 17:46:16 2026
 
 module SerDes_Top (RoraLink_8B10B_Top_link_reset_o, RoraLink_8B10B_Top_sys_reset_o, RoraLink_8B10B_Top_user_rx_data_o, RoraLink_8B10B_Top_user_rx_strb_o, RoraLink_8B10B_Top_user_rx_valid_o, RoraLink_8B10B_Top_user_rx_last_o, RoraLink_8B10B_Top_crc_pass_fail_n_o, RoraLink_8B10B_Top_crc_valid_o, RoraLink_8B10B_Top_hard_err_o, RoraLink_8B10B_Top_soft_err_o, RoraLink_8B10B_Top_frame_err_o, RoraLink_8B10B_Top_channel_up_o, RoraLink_8B10B_Top_lane_up_o, RoraLink_8B10B_Top_gt_pcs_rx_clk_o, RoraLink_8B10B_Top_gt_pll_lock_o, RoraLink_8B10B_Top_gt_rx_align_link_o, RoraLink_8B10B_Top_gt_rx_pma_lock_o, RoraLink_8B10B_Top_gt_rx_k_lock_o, RoraLink_8B10B_Top_user_clk_i, RoraLink_8B10B_Top_init_clk_i, RoraLink_8B10B_Top_reset_i, RoraLink_8B10B_Top_user_pll_locked_i, RoraLink_8B10B_Top_gt_reset_i, RoraLink_8B10B_Top_gt_pcs_rx_reset_i);
 
@@ -35,17 +35,17 @@ input RoraLink_8B10B_Top_user_pll_locked_i;
 input RoraLink_8B10B_Top_gt_reset_i;
 input RoraLink_8B10B_Top_gt_pcs_rx_reset_i;
 
-wire q0_fabric_ln1_rstn_i;
-wire [79:0] q0_fabric_ln1_txdata_i;
-wire q0_lane1_pcs_rx_rst;
-wire q0_lane1_align_trigger;
-wire q0_lane1_chbond_start;
-wire q0_lane1_pcs_tx_rst;
-wire q0_lane1_fabric_rx_clk;
-wire q0_lane1_fabric_c2i_clk;
-wire q0_lane1_fabric_tx_clk;
-wire q0_lane1_rx_if_fifo_rden;
-wire q0_fabric_ln1_tx_vld_in;
+wire q0_fabric_ln3_rstn_i;
+wire [79:0] q0_fabric_ln3_txdata_i;
+wire q0_lane3_pcs_rx_rst;
+wire q0_lane3_align_trigger;
+wire q0_lane3_chbond_start;
+wire q0_lane3_pcs_tx_rst;
+wire q0_lane3_fabric_rx_clk;
+wire q0_lane3_fabric_c2i_clk;
+wire q0_lane3_fabric_tx_clk;
+wire q0_lane3_rx_if_fifo_rden;
+wire q0_fabric_ln3_tx_vld_in;
 wire q0_ln0_txm_o;
 wire q0_ln0_txp_o;
 wire q0_ln1_txm_o;
@@ -384,46 +384,46 @@ GTR12_QUADA gtr12_quad_inst0 (
     .FABRIC_LN2_RATE_I({gw_gnd,gw_gnd}),
     .FABRIC_LN3_RATE_I({gw_gnd,gw_gnd}),
     .FABRIC_LN0_RSTN_I(gw_gnd),
-    .FABRIC_LN1_RSTN_I(q0_fabric_ln1_rstn_i),
+    .FABRIC_LN1_RSTN_I(gw_gnd),
     .FABRIC_LN2_RSTN_I(gw_gnd),
-    .FABRIC_LN3_RSTN_I(gw_gnd),
+    .FABRIC_LN3_RSTN_I(q0_fabric_ln3_rstn_i),
     .FABRIC_LN0_TXDATA_I({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
-    .FABRIC_LN1_TXDATA_I(q0_fabric_ln1_txdata_i),
+    .FABRIC_LN1_TXDATA_I({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN2_TXDATA_I({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
-    .FABRIC_LN3_TXDATA_I({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+    .FABRIC_LN3_TXDATA_I(q0_fabric_ln3_txdata_i),
     .FABRIC_REFCLK_GATE_I(gw_gnd),
     .LANE0_PCS_RX_RST(gw_gnd),
-    .LANE1_PCS_RX_RST(q0_lane1_pcs_rx_rst),
+    .LANE1_PCS_RX_RST(gw_gnd),
     .LANE2_PCS_RX_RST(gw_gnd),
-    .LANE3_PCS_RX_RST(gw_gnd),
+    .LANE3_PCS_RX_RST(q0_lane3_pcs_rx_rst),
     .LANE0_ALIGN_TRIGGER(gw_gnd),
-    .LANE1_ALIGN_TRIGGER(q0_lane1_align_trigger),
+    .LANE1_ALIGN_TRIGGER(gw_gnd),
     .LANE2_ALIGN_TRIGGER(gw_gnd),
-    .LANE3_ALIGN_TRIGGER(gw_gnd),
+    .LANE3_ALIGN_TRIGGER(q0_lane3_align_trigger),
     .LANE0_CHBOND_START(gw_gnd),
-    .LANE1_CHBOND_START(q0_lane1_chbond_start),
+    .LANE1_CHBOND_START(gw_gnd),
     .LANE2_CHBOND_START(gw_gnd),
-    .LANE3_CHBOND_START(gw_gnd),
+    .LANE3_CHBOND_START(q0_lane3_chbond_start),
     .LANE0_PCS_TX_RST(gw_gnd),
-    .LANE1_PCS_TX_RST(q0_lane1_pcs_tx_rst),
+    .LANE1_PCS_TX_RST(gw_gnd),
     .LANE2_PCS_TX_RST(gw_gnd),
-    .LANE3_PCS_TX_RST(gw_gnd),
+    .LANE3_PCS_TX_RST(q0_lane3_pcs_tx_rst),
     .LANE0_FABRIC_RX_CLK(gw_gnd),
-    .LANE1_FABRIC_RX_CLK(q0_lane1_fabric_rx_clk),
+    .LANE1_FABRIC_RX_CLK(gw_gnd),
     .LANE2_FABRIC_RX_CLK(gw_gnd),
-    .LANE3_FABRIC_RX_CLK(gw_gnd),
+    .LANE3_FABRIC_RX_CLK(q0_lane3_fabric_rx_clk),
     .LANE0_FABRIC_C2I_CLK(gw_gnd),
-    .LANE1_FABRIC_C2I_CLK(q0_lane1_fabric_c2i_clk),
+    .LANE1_FABRIC_C2I_CLK(gw_gnd),
     .LANE2_FABRIC_C2I_CLK(gw_gnd),
-    .LANE3_FABRIC_C2I_CLK(gw_gnd),
+    .LANE3_FABRIC_C2I_CLK(q0_lane3_fabric_c2i_clk),
     .LANE0_FABRIC_TX_CLK(gw_gnd),
-    .LANE1_FABRIC_TX_CLK(q0_lane1_fabric_tx_clk),
+    .LANE1_FABRIC_TX_CLK(gw_gnd),
     .LANE2_FABRIC_TX_CLK(gw_gnd),
-    .LANE3_FABRIC_TX_CLK(gw_gnd),
+    .LANE3_FABRIC_TX_CLK(q0_lane3_fabric_tx_clk),
     .LANE0_RX_IF_FIFO_RDEN(gw_gnd),
-    .LANE1_RX_IF_FIFO_RDEN(q0_lane1_rx_if_fifo_rden),
+    .LANE1_RX_IF_FIFO_RDEN(gw_gnd),
     .LANE2_RX_IF_FIFO_RDEN(gw_gnd),
-    .LANE3_RX_IF_FIFO_RDEN(gw_gnd),
+    .LANE3_RX_IF_FIFO_RDEN(q0_lane3_rx_if_fifo_rden),
     .FABRIC_CMU0_RESETN_I(gw_gnd),
     .FABRIC_CMU0_PD_I(gw_gnd),
     .FABRIC_CMU0_IDDQ_I(gw_gnd),
@@ -452,7 +452,7 @@ GTR12_QUADA gtr12_quad_inst0 (
     .FABRIC_LN1_CTRL_I_H({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN1_PD_I_H({gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN1_RATE_I_H({gw_gnd,gw_gnd}),
-    .FABRIC_LN1_TX_VLD_IN(q0_fabric_ln1_tx_vld_in),
+    .FABRIC_LN1_TX_VLD_IN(gw_gnd),
     .FABRIC_LN2_CTRL_I_H({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN2_PD_I_H({gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN2_RATE_I_H({gw_gnd,gw_gnd}),
@@ -460,7 +460,7 @@ GTR12_QUADA gtr12_quad_inst0 (
     .FABRIC_LN3_CTRL_I_H({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN3_PD_I_H({gw_gnd,gw_gnd,gw_gnd}),
     .FABRIC_LN3_RATE_I_H({gw_gnd,gw_gnd}),
-    .FABRIC_LN3_TX_VLD_IN(gw_gnd),
+    .FABRIC_LN3_TX_VLD_IN(q0_fabric_ln3_tx_vld_in),
     .FABRIC_POR_N_I(gw_gnd),
     .FABRIC_QUAD_MCU_REQ_I(gw_gnd),
     .CK_AHB_I(gw_gnd),
@@ -498,33 +498,33 @@ RoraLink_8B10B_Top RoraLink_8B10B_Top_inst (
     .gt_rx_align_link_o(RoraLink_8B10B_Top_gt_rx_align_link_o),
     .gt_rx_pma_lock_o(RoraLink_8B10B_Top_gt_rx_pma_lock_o),
     .gt_rx_k_lock_o(RoraLink_8B10B_Top_gt_rx_k_lock_o),
-    .serdes_pcs_rx_rst_o(q0_lane1_pcs_rx_rst),
-    .serdes_lanex_fabric_rx_clk_o(q0_lane1_fabric_rx_clk),
-    .serdes_lanex_rx_if_fifo_rden_o(q0_lane1_rx_if_fifo_rden),
-    .serdes_lanex_fabric_c2i_clk_o(q0_lane1_fabric_c2i_clk),
-    .serdes_lanex_chbond_start_o(q0_lane1_chbond_start),
-    .serdes_lanex_align_trigger_o(q0_lane1_align_trigger),
-    .serdes_lnx_rstn_o(q0_fabric_ln1_rstn_i),
+    .serdes_pcs_rx_rst_o(q0_lane3_pcs_rx_rst),
+    .serdes_lanex_fabric_rx_clk_o(q0_lane3_fabric_rx_clk),
+    .serdes_lanex_rx_if_fifo_rden_o(q0_lane3_rx_if_fifo_rden),
+    .serdes_lanex_fabric_c2i_clk_o(q0_lane3_fabric_c2i_clk),
+    .serdes_lanex_chbond_start_o(q0_lane3_chbond_start),
+    .serdes_lanex_align_trigger_o(q0_lane3_align_trigger),
+    .serdes_lnx_rstn_o(q0_fabric_ln3_rstn_i),
     .user_clk_i(RoraLink_8B10B_Top_user_clk_i),
     .init_clk_i(RoraLink_8B10B_Top_init_clk_i),
     .reset_i(RoraLink_8B10B_Top_reset_i),
     .user_pll_locked_i(RoraLink_8B10B_Top_user_pll_locked_i),
     .gt_reset_i(RoraLink_8B10B_Top_gt_reset_i),
     .gt_pcs_rx_reset_i(RoraLink_8B10B_Top_gt_pcs_rx_reset_i),
-    .serdes_lanex_align_link_i(q0_lane1_align_link),
-    .serdes_lanex_k_lock_i(q0_lane1_k_lock),
-    .serdes_lnx_pma_rx_lock_i(q0_fabric_ln1_pma_rx_lock_o),
-    .serdes_lanex_rx_if_fifo_aempty_i(q0_lane1_rx_if_fifo_aempty),
-    .serdes_lnx_rx_vld_i(q0_fabric_ln1_rx_vld_out),
-    .serdes_lnx_rxdata_i(q0_fabric_ln1_rxdata_o[87:0]),
-    .serdes_rx_if_fifo_rdusewd_i(q0_lane1_rx_if_fifo_rdusewd[4:0]),
+    .serdes_lanex_align_link_i(q0_lane3_align_link),
+    .serdes_lanex_k_lock_i(q0_lane3_k_lock),
+    .serdes_lnx_pma_rx_lock_i(q0_fabric_ln3_pma_rx_lock_o),
+    .serdes_lanex_rx_if_fifo_aempty_i(q0_lane3_rx_if_fifo_aempty),
+    .serdes_lnx_rx_vld_i(q0_fabric_ln3_rx_vld_out),
+    .serdes_lnx_rxdata_i(q0_fabric_ln3_rxdata_o[87:0]),
+    .serdes_rx_if_fifo_rdusewd_i(q0_lane3_rx_if_fifo_rdusewd[4:0]),
     .serdes_q0_cmu1_ok_i(q0_fabric_cmu1_ok_o),
     .serdes_q0_cmu0_ok_i(q0_fabric_cmu_ok_o),
     .serdes_q1_cmu1_ok_i(gw_gnd),
     .serdes_q1_cmu0_ok_i(gw_gnd),
-    .serdes_lanex_cmu_ok_i(q0_fabric_lane1_cmu_ok_o),
-    .serdes_lanex_pcs_tx_fabric_clk_i(q0_lane1_pcs_tx_o_fabric_clk),
-    .serdes_lanex_pcs_rx_fabric_clk_i(q0_lane1_pcs_rx_o_fabric_clk)
+    .serdes_lanex_cmu_ok_i(q0_fabric_lane3_cmu_ok_o),
+    .serdes_lanex_pcs_tx_fabric_clk_i(q0_lane3_pcs_tx_o_fabric_clk),
+    .serdes_lanex_pcs_rx_fabric_clk_i(q0_lane3_pcs_rx_o_fabric_clk)
 );
 
 endmodule //SerDes_Top

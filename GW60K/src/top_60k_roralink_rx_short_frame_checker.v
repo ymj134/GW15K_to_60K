@@ -24,15 +24,9 @@
 module top (
     input  wire       clk,      // 50MHz board clock, used as RoraLink init clock
     input  wire       rst_n,
-    output wire [1:0] O_led,
-
-    output wire sfp_tx_disable1,
-    output wire sfp_tx_disable2
+    output wire [1:0] O_led
 );
 
-
-assign  sfp_tx_disable1 = 1'b0;
-assign  sfp_tx_disable2 = 1'b0;
 // --------------------------------------------------------------------------
 // Version marker for ILA
 // --------------------------------------------------------------------------

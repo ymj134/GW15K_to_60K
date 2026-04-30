@@ -203,5 +203,8 @@ IO_LOC "clk" F13;
 IO_PORT "clk"  PULL_MODE=NONE DRIVE=OFF ;
 
 
-IO_LOC "sfp_tx_disable" G4;
-IO_PORT "sfp_tx_disable" PULL_MODE=NONE DRIVE=8;
+IO_LOC "sfp_tx_disable2" G4;
+IO_PORT "sfp_tx_disable2" PULL_MODE=NONE DRIVE=8;
+
+IO_LOC "sfp_tx_disable1" G2;
+IO_PORT "sfp_tx_disable1" PULL_MODE=NONE DRIVE=8;

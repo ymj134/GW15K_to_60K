@@ -13,7 +13,7 @@
 -global_reset disable
 -protocol_module_name0 RoraLink_8B10B_Top
 -RoraLink_8B10B_Topprotocol_module_type roralink8b10b
--RoraLink_8B10B_TopReferenceClockSource Q0REFCLK0
+-RoraLink_8B10B_TopReferenceClockSource Q0REFCLK1
 -RoraLink_8B10B_TopPLLSource CPLL
 -RoraLink_8B10B_TopDataWidthPerLane 4
 -RoraLink_8B10B_TopNumberoflanes 1
@@ -25,5 +25,5 @@
 -RoraLink_8B10B_TopCRC true
 -RoraLink_8B10B_TopEnableDRP false
 -RoraLink_8B10B_TopDRPPorts false
--RoraLink_8B10B_TopQ0Lane1 true
--RoraLink_8B10B_TopChannel0Selection Q0Lane1
+-RoraLink_8B10B_TopQ0Lane3 true
+-RoraLink_8B10B_TopChannel0Selection Q0Lane3
