@@ -5,13 +5,18 @@
     <Version>5</Version>
     <Device name="GW5AT-60B" pn="GW5AT-LV60PG484AC2/I1">gw5at60b-003</Device>
     <FileList>
+        <File path="src/Gowin_PLL_DDR/Gowin_PLL_DDR.v" type="file.verilog" enable="1"/>
+        <File path="src/Gowin_PLL_DDR/Gowin_PLL_DDR_mod.v" type="file.verilog" enable="1"/>
         <File path="src/adv7513_iic_init.v" type="file.verilog" enable="1"/>
+        <File path="src/ddr3_memory_interface/ddr3_memory_interface.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_pll/gowin_pll.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_pll/gowin_pll_mod.v" type="file.verilog" enable="1"/>
         <File path="src/i2c_master/i2c_master.v" type="file.verilog" enable="1"/>
         <File path="src/pll_init.v" type="file.verilog" enable="1"/>
+        <File path="src/pll_mDRP_intf.v" type="file.verilog" enable="1"/>
         <File path="src/testpattern.v" type="file.verilog" enable="1"/>
         <File path="src/top.v" type="file.verilog" enable="1"/>
         <File path="src/dk_video.cst" type="file.cst" enable="1"/>
+        <File path="src/ddr3.rao" type="file.gao" enable="1"/>
     </FileList>
 </Project>
