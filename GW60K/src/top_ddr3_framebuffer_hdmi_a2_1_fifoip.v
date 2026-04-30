@@ -307,8 +307,8 @@ wire        fb_underflow_seen;
 wire [3:0]  fb_state;
 wire [15:0] fb_wr_burst_idx;
 wire [15:0] fb_rd_burst_idx;
-wire [15:0] fb_fifo_wr_count;
-wire [15:0] fb_fifo_rd_count;
+wire [11:0] fb_fifo_wr_count;
+wire [11:0] fb_fifo_rd_count;
 
 axi_ddr3_framebuffer_a2_1 #(
     .AXI_ADDR_WIDTH (29),
@@ -316,8 +316,8 @@ axi_ddr3_framebuffer_a2_1 #(
     .AXI_ID_WIDTH   (4),
     .H_RES          (1920),
     .V_RES          (1080),
-    .BURST_BEATS    (64),
-    .FIFO_AW        (14)      // read-side count/debug width for 8192+ pixel FIFO
+    .BURST_BEATS    (16),
+    .FIFO_AW        (11)      // 2048 pixels async FIFO
 ) u_framebuffer (
     .axi_clk          (clk_out),
     .axi_rst          (ddr_rst | !init_calib_complete),
@@ -381,7 +381,7 @@ reg [23:0] hdmi_rgb_d;
 
 wire [23:0] ddr_rgb = fb_pixel_word[23:0];
 // Before DDR framebuffer is ready, force white screen.
-// After framebuffer starts, show DDR pixels. Active-video underflow is forced red inside the framebuffer module.
+// After framebuffer starts, show DDR pixels. Underflow is exposed by LED/ILA.
 wire [23:0] fallback_rgb = 24'hFFFFFF;
 wire        use_ddr_rgb = fb_display_started && !fb_error;
 
@@ -483,7 +483,7 @@ assign O_led[1] = (fb_error || fb_underflow_seen) ? led_cnt[22] :
 // ILA search prefix: ila60a21_
 // Use clk_out for DDR/AXI signals, pixel_clk for HDMI-domain signals.
 // ================================================================
-(* keep = "true" *) wire [31:0] ila60a21_top_version          = 32'h60A2_1002;
+(* keep = "true" *) wire [31:0] ila60a21_top_version          = 32'h60A2_1001;
 (* keep = "true" *) wire        ila60a21_ddr_pll_lock         = ddr_pll_lock;
 (* keep = "true" *) wire        ila60a21_pixel_pll_lock       = pixel_pll_lock;
 (* keep = "true" *) wire        ila60a21_ddr_rst              = ddr_rst;
@@ -495,8 +495,8 @@ assign O_led[1] = (fb_error || fb_underflow_seen) ? led_cnt[22] :
 (* keep = "true" *) wire [3:0]  ila60a21_fb_state             = fb_state;
 (* keep = "true" *) wire [15:0] ila60a21_wr_burst_idx         = fb_wr_burst_idx;
 (* keep = "true" *) wire [15:0] ila60a21_rd_burst_idx         = fb_rd_burst_idx;
-(* keep = "true" *) wire [15:0] ila60a21_fifo_wr_count        = fb_fifo_wr_count;
-(* keep = "true" *) wire [15:0] ila60a21_fifo_rd_count        = fb_fifo_rd_count;
+(* keep = "true" *) wire [11:0] ila60a21_fifo_wr_count        = fb_fifo_wr_count;
+(* keep = "true" *) wire [11:0] ila60a21_fifo_rd_count        = fb_fifo_rd_count;
 (* keep = "true" *) wire        ila60a21_awvalid              = s_axi_awvalid;
 (* keep = "true" *) wire        ila60a21_awready              = s_axi_awready;
 (* keep = "true" *) wire        ila60a21_wvalid               = s_axi_wvalid;
@@ -611,7 +611,7 @@ endmodule
 //
 // Expected ports:
 //      Data[255:0], WrClk, RdClk, WrEn, RdEn, Reset,
-//      Q[31:0], Empty, Full, Almost_Empty, Almost_Full, Wnum[10:0], Rnum[13:0]
+//      Q[31:0], Empty, Full, Almost_Empty, Almost_Full
 //
 // If your generated FIFO has different port names, only adjust the
 // Video_FIFO_256to32 instance below.
@@ -671,24 +671,15 @@ module axi_ddr3_framebuffer_a2_1 #(
     output reg [3:0]                    state_dbg,
     output reg [15:0]                   wr_burst_idx_dbg,
     output reg [15:0]                   rd_burst_idx_dbg,
-    output wire [15:0]                  fifo_wr_count_dbg,
-    output wire [15:0]                  fifo_rd_count_dbg
+    output wire [FIFO_AW:0]             fifo_wr_count_dbg,
+    output wire [FIFO_AW:0]             fifo_rd_count_dbg
 );
-localparam integer PIXELS_PER_BEAT  = AXI_DATA_WIDTH / 32;
-localparam integer FRAME_PIXELS     = H_RES * V_RES;
-localparam integer FRAME_BEATS      = FRAME_PIXELS / PIXELS_PER_BEAT;
-localparam integer TOTAL_BURSTS     = FRAME_BEATS / BURST_BEATS;
-localparam integer BURST_BYTES      = (AXI_DATA_WIDTH/8) * BURST_BEATS;
-localparam [7:0] AXI_LEN            = BURST_BEATS - 1;
+    localparam integer PIXELS_PER_BEAT  = AXI_DATA_WIDTH / 32;          // 8 pixels per 256-bit AXI beat
+    localparam integer PIXELS_PER_BURST = PIXELS_PER_BEAT * BURST_BEATS; // 128 pixels per burst
+    localparam integer BURSTS_PER_LINE  = H_RES / PIXELS_PER_BURST;      // 15
+    localparam integer TOTAL_BURSTS     = BURSTS_PER_LINE * V_RES;       // 16200
+    localparam [7:0] AXI_LEN            = BURST_BEATS - 1;
 
-// Read-side 32bit word count.
-// Start HDMI DDR display only after at least 4096 pixels are prefetched.
-localparam [13:0] FIFO_START_LEVEL  = 14'd4096;
-
-// Write-side 256bit word count.
-// FIFO write depth is 1024. One AXI read burst writes 64 words.
-// Keep enough margin for FIFO count synchronization delay.
-localparam [10:0] FIFO_WR_SAFE_LEVEL = 11'd832;
     localparam [3:0]
         ST_WR_AW      = 4'd0,
         ST_WR_W       = 4'd1,
@@ -715,10 +706,9 @@ localparam [10:0] FIFO_WR_SAFE_LEVEL = 11'd832;
     reg [11:0] wr_x;
     reg [10:0] wr_y;
 
-    // One AXI burst = 64 beats * 32 bytes = 2048 bytes.
-    // Address step is therefore 2^11 bytes. Keep burst start addresses 2KB-aligned.
-    assign m_axi_awaddr = {{(AXI_ADDR_WIDTH-27){1'b0}}, wr_burst_idx, 11'b0};
-    assign m_axi_araddr = {{(AXI_ADDR_WIDTH-27){1'b0}}, rd_burst_idx, 11'b0};
+    // One AXI burst = 16 beats * 32 bytes = 512 bytes.
+    assign m_axi_awaddr = {{(AXI_ADDR_WIDTH-25){1'b0}}, wr_burst_idx, 9'b0};
+    assign m_axi_araddr = {{(AXI_ADDR_WIDTH-25){1'b0}}, rd_burst_idx, 9'b0};
     assign m_axi_wlast  = m_axi_wvalid && (wr_beat_idx == AXI_LEN);
     assign m_axi_wdata  = pack_8pixels(wr_x, wr_y);
 
@@ -766,10 +756,6 @@ localparam [10:0] FIFO_WR_SAFE_LEVEL = 11'd832;
     wire        fifo_full;
     wire        fifo_aempty;
     wire        fifo_afull;
-    wire [10:0] fifo_wnum;
-    wire [13:0] fifo_rnum;
-
-wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
 
     // The previous hand-coded FIFO wrote one 32-bit pixel per 100MHz axi_clk,
     // which cannot feed a 148.5MHz active video stream. This FIFO writes one
@@ -780,8 +766,6 @@ wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
         .RdClk        (pixel_clk),
         .WrEn         (fifo_wr_en),
         .RdEn         (fifo_rd_en),
-        .Wnum         (fifo_wnum),
-        .Rnum         (fifo_rnum),
         .Reset        (fifo_rst),
         .Q            (fifo_rd_data),
         .Empty        (fifo_empty),
@@ -790,12 +774,12 @@ wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
         .Almost_Full  (fifo_afull)
     );
 
-    // During an active-video underflow, output red instead of an invalid FIFO Q.
-    assign pixel_word = (display_started && display_de && fifo_empty) ? 32'h00FF_0000 : fifo_rd_data;
+    assign pixel_word = fifo_rd_data;
     assign fifo_rd_en = display_started && display_de && !fifo_empty;
 
-    assign fifo_wr_count_dbg = {5'd0, fifo_wnum};
-    assign fifo_rd_count_dbg = {2'd0, fifo_rnum};
+    // Count debug is not available from the minimal FIFO port set.
+    assign fifo_wr_count_dbg = {FIFO_AW+1{1'b0}};
+    assign fifo_rd_count_dbg = {FIFO_AW+1{1'b0}};
 
     // -----------------------------
     // Pixel-domain display enable
@@ -814,7 +798,7 @@ wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
 
             // Start displaying DDR framebuffer only on a clean frame boundary,
             // and only after the read-side FIFO has passed the Almost_Empty threshold.
-            if (!display_started && fill_done_p2 && (fifo_rnum >= FIFO_START_LEVEL) && display_frame_start)
+            if (!display_started && fill_done_p2 && !fifo_aempty && display_frame_start)
                 display_started <= 1'b1;
 
             if (display_started && display_de && fifo_empty)
@@ -900,60 +884,46 @@ wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
                     end
                 end
 
-ST_RD_WAIT: begin
-    m_axi_arvalid <= 1'b0;
-    m_axi_rready  <= 1'b0;
+                ST_RD_WAIT: begin
+                    m_axi_arvalid <= 1'b0;
+                    m_axi_rready  <= 1'b0;
+                    if (fill_done && !fifo_afull) begin
+                        m_axi_arvalid <= 1'b1;
+                        state         <= ST_RD_AR;
+                    end
+                end
 
-    // Important:
-    // Prefetch DDR data before display_started.
-    // display_started waits for fifo_rnum >= FIFO_START_LEVEL,
-    // so AXI reader must NOT depend on display_started.
-    //
-    // Use fifo_wnum instead of Almost_Full, because Almost_Full
-    // threshold may be too conservative or unclear after FIFO IP generation.
-    if (fill_done && !error_seen && fifo_has_space_for_burst) begin
-        m_axi_arvalid <= 1'b1;
-        state         <= ST_RD_AR;
-    end
-end
+                ST_RD_AR: begin
+                    if (m_axi_arvalid && m_axi_arready) begin
+                        m_axi_arvalid <= 1'b0;
+                        m_axi_rready  <= !fifo_full;
+                        state         <= ST_RD_R;
+                    end
+                end
 
-ST_RD_AR: begin
-    if (m_axi_arvalid && m_axi_arready) begin
-        m_axi_arvalid <= 1'b0;
+                ST_RD_R: begin
+                    // Backpressure DDR read data if the FIFO is full.
+                    m_axi_rready <= !fifo_full;
 
-        // We already checked that FIFO has enough space for one full burst,
-        // so keep R channel ready and accept the burst continuously.
-        m_axi_rready  <= 1'b1;
-        state         <= ST_RD_R;
-    end
-end
+                    if (m_axi_rvalid && m_axi_rready) begin
+                        if (m_axi_rresp != 2'b00) begin
+                            error_seen   <= 1'b1;
+                            m_axi_rready <= 1'b0;
+                            state        <= ST_ERROR;
+                        end else begin
+                            fifo_wr_en <= 1'b1;
 
-ST_RD_R: begin
-    // Keep R channel flowing. Since ST_RD_WAIT reserved enough FIFO space
-    // for one complete burst, fifo_full should never happen here.
-    m_axi_rready <= 1'b1;
-
-    if (m_axi_rvalid) begin
-        if ((m_axi_rresp != 2'b00) || fifo_full) begin
-            error_seen   <= 1'b1;
-            m_axi_rready <= 1'b0;
-            state        <= ST_ERROR;
-        end else begin
-            fifo_wr_en <= 1'b1;
-
-            if (m_axi_rlast) begin
-                m_axi_rready <= 1'b0;
-
-                if (rd_burst_idx == TOTAL_BURSTS - 1)
-                    rd_burst_idx <= 16'd0;
-                else
-                    rd_burst_idx <= rd_burst_idx + 1'b1;
-
-                state <= ST_RD_WAIT;
-            end
-        end
-    end
-end
+                            if (m_axi_rlast) begin
+                                m_axi_rready <= 1'b0;
+                                if (rd_burst_idx == TOTAL_BURSTS - 1)
+                                    rd_burst_idx <= 16'd0;
+                                else
+                                    rd_burst_idx <= rd_burst_idx + 1'b1;
+                                state <= ST_RD_WAIT;
+                            end
+                        end
+                    end
+                end
 
                 ST_ERROR: begin
                     m_axi_awvalid <= 1'b0;

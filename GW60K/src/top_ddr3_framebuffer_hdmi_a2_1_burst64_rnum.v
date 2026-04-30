@@ -674,21 +674,14 @@ module axi_ddr3_framebuffer_a2_1 #(
     output wire [15:0]                  fifo_wr_count_dbg,
     output wire [15:0]                  fifo_rd_count_dbg
 );
-localparam integer PIXELS_PER_BEAT  = AXI_DATA_WIDTH / 32;
-localparam integer FRAME_PIXELS     = H_RES * V_RES;
-localparam integer FRAME_BEATS      = FRAME_PIXELS / PIXELS_PER_BEAT;
-localparam integer TOTAL_BURSTS     = FRAME_BEATS / BURST_BEATS;
-localparam integer BURST_BYTES      = (AXI_DATA_WIDTH/8) * BURST_BEATS;
-localparam [7:0] AXI_LEN            = BURST_BEATS - 1;
+    localparam integer PIXELS_PER_BEAT  = AXI_DATA_WIDTH / 32;          // 8 pixels per 256-bit AXI beat
+    localparam integer FRAME_PIXELS     = H_RES * V_RES;                 // 1920*1080
+    localparam integer FRAME_BEATS      = FRAME_PIXELS / PIXELS_PER_BEAT; // 259200 AXI beats
+    localparam integer TOTAL_BURSTS     = FRAME_BEATS / BURST_BEATS;      // 4050 when BURST_BEATS=64
+    localparam integer BURST_BYTES      = (AXI_DATA_WIDTH/8) * BURST_BEATS; // 2048 bytes when 64 beats
+    localparam [7:0] AXI_LEN            = BURST_BEATS - 1;
+    localparam [13:0] FIFO_START_LEVEL  = 14'd4096; // read-side 32-bit words; start display after >=4096 pixels prefetched
 
-// Read-side 32bit word count.
-// Start HDMI DDR display only after at least 4096 pixels are prefetched.
-localparam [13:0] FIFO_START_LEVEL  = 14'd4096;
-
-// Write-side 256bit word count.
-// FIFO write depth is 1024. One AXI read burst writes 64 words.
-// Keep enough margin for FIFO count synchronization delay.
-localparam [10:0] FIFO_WR_SAFE_LEVEL = 11'd832;
     localparam [3:0]
         ST_WR_AW      = 4'd0,
         ST_WR_W       = 4'd1,
@@ -768,8 +761,6 @@ localparam [10:0] FIFO_WR_SAFE_LEVEL = 11'd832;
     wire        fifo_afull;
     wire [10:0] fifo_wnum;
     wire [13:0] fifo_rnum;
-
-wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
 
     // The previous hand-coded FIFO wrote one 32-bit pixel per 100MHz axi_clk,
     // which cannot feed a 148.5MHz active video stream. This FIFO writes one
@@ -900,60 +891,46 @@ wire fifo_has_space_for_burst = (fifo_wnum <= FIFO_WR_SAFE_LEVEL);
                     end
                 end
 
-ST_RD_WAIT: begin
-    m_axi_arvalid <= 1'b0;
-    m_axi_rready  <= 1'b0;
+                ST_RD_WAIT: begin
+                    m_axi_arvalid <= 1'b0;
+                    m_axi_rready  <= 1'b0;
+                    if (fill_done && !fifo_afull) begin
+                        m_axi_arvalid <= 1'b1;
+                        state         <= ST_RD_AR;
+                    end
+                end
 
-    // Important:
-    // Prefetch DDR data before display_started.
-    // display_started waits for fifo_rnum >= FIFO_START_LEVEL,
-    // so AXI reader must NOT depend on display_started.
-    //
-    // Use fifo_wnum instead of Almost_Full, because Almost_Full
-    // threshold may be too conservative or unclear after FIFO IP generation.
-    if (fill_done && !error_seen && fifo_has_space_for_burst) begin
-        m_axi_arvalid <= 1'b1;
-        state         <= ST_RD_AR;
-    end
-end
+                ST_RD_AR: begin
+                    if (m_axi_arvalid && m_axi_arready) begin
+                        m_axi_arvalid <= 1'b0;
+                        m_axi_rready  <= !fifo_full;
+                        state         <= ST_RD_R;
+                    end
+                end
 
-ST_RD_AR: begin
-    if (m_axi_arvalid && m_axi_arready) begin
-        m_axi_arvalid <= 1'b0;
+                ST_RD_R: begin
+                    // Backpressure DDR read data if the FIFO is full.
+                    m_axi_rready <= !fifo_full;
 
-        // We already checked that FIFO has enough space for one full burst,
-        // so keep R channel ready and accept the burst continuously.
-        m_axi_rready  <= 1'b1;
-        state         <= ST_RD_R;
-    end
-end
+                    if (m_axi_rvalid && m_axi_rready) begin
+                        if (m_axi_rresp != 2'b00) begin
+                            error_seen   <= 1'b1;
+                            m_axi_rready <= 1'b0;
+                            state        <= ST_ERROR;
+                        end else begin
+                            fifo_wr_en <= 1'b1;
 
-ST_RD_R: begin
-    // Keep R channel flowing. Since ST_RD_WAIT reserved enough FIFO space
-    // for one complete burst, fifo_full should never happen here.
-    m_axi_rready <= 1'b1;
-
-    if (m_axi_rvalid) begin
-        if ((m_axi_rresp != 2'b00) || fifo_full) begin
-            error_seen   <= 1'b1;
-            m_axi_rready <= 1'b0;
-            state        <= ST_ERROR;
-        end else begin
-            fifo_wr_en <= 1'b1;
-
-            if (m_axi_rlast) begin
-                m_axi_rready <= 1'b0;
-
-                if (rd_burst_idx == TOTAL_BURSTS - 1)
-                    rd_burst_idx <= 16'd0;
-                else
-                    rd_burst_idx <= rd_burst_idx + 1'b1;
-
-                state <= ST_RD_WAIT;
-            end
-        end
-    end
-end
+                            if (m_axi_rlast) begin
+                                m_axi_rready <= 1'b0;
+                                if (rd_burst_idx == TOTAL_BURSTS - 1)
+                                    rd_burst_idx <= 16'd0;
+                                else
+                                    rd_burst_idx <= rd_burst_idx + 1'b1;
+                                state <= ST_RD_WAIT;
+                            end
+                        end
+                    end
+                end
 
                 ST_ERROR: begin
                     m_axi_awvalid <= 1'b0;
