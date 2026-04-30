@@ -22,11 +22,8 @@
 module top (
     input  wire       clk,      // board clock, expected 50MHz
     input  wire       rst_n,    // active-low reset
-    output wire [1:0] O_led,
-    output wire       sfp_tx_disable   //60K板子此管脚没有接地
+    output wire [1:0] O_led
 );
-
-assign sfp_tx_disable = 1'b0 ;
 
     localparam [31:0] TOP_VERSION = 32'h60A2_3001;
 

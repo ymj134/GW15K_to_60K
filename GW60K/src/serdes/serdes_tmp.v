@@ -1,0 +1,41 @@
+//Copyright (C)2014-2026 Gowin Semiconductor Corporation.
+//All rights reserved.
+//File Title: Template file for instantiation
+//Tool Version: V1.9.12.02_SP2 (64-bit)
+//IP Version: 1.0
+//Part Number: GW5AT-LV60PG484AC2/I1
+//Device: GW5AT-60
+//Device Version: B
+//Created Time: Thu Apr 30 16:39:59 2026
+
+//Change the instance name and port connections to the signal names
+//--------Copy here to design--------
+
+    SerDes_Top your_instance_name(
+        .RoraLink_8B10B_Top_link_reset_o(RoraLink_8B10B_Top_link_reset_o), //output RoraLink_8B10B_Top_link_reset_o
+        .RoraLink_8B10B_Top_sys_reset_o(RoraLink_8B10B_Top_sys_reset_o), //output RoraLink_8B10B_Top_sys_reset_o
+        .RoraLink_8B10B_Top_user_rx_data_o(RoraLink_8B10B_Top_user_rx_data_o), //output [31:0] RoraLink_8B10B_Top_user_rx_data_o
+        .RoraLink_8B10B_Top_user_rx_strb_o(RoraLink_8B10B_Top_user_rx_strb_o), //output [3:0] RoraLink_8B10B_Top_user_rx_strb_o
+        .RoraLink_8B10B_Top_user_rx_valid_o(RoraLink_8B10B_Top_user_rx_valid_o), //output RoraLink_8B10B_Top_user_rx_valid_o
+        .RoraLink_8B10B_Top_user_rx_last_o(RoraLink_8B10B_Top_user_rx_last_o), //output RoraLink_8B10B_Top_user_rx_last_o
+        .RoraLink_8B10B_Top_crc_pass_fail_n_o(RoraLink_8B10B_Top_crc_pass_fail_n_o), //output RoraLink_8B10B_Top_crc_pass_fail_n_o
+        .RoraLink_8B10B_Top_crc_valid_o(RoraLink_8B10B_Top_crc_valid_o), //output RoraLink_8B10B_Top_crc_valid_o
+        .RoraLink_8B10B_Top_hard_err_o(RoraLink_8B10B_Top_hard_err_o), //output RoraLink_8B10B_Top_hard_err_o
+        .RoraLink_8B10B_Top_soft_err_o(RoraLink_8B10B_Top_soft_err_o), //output RoraLink_8B10B_Top_soft_err_o
+        .RoraLink_8B10B_Top_frame_err_o(RoraLink_8B10B_Top_frame_err_o), //output RoraLink_8B10B_Top_frame_err_o
+        .RoraLink_8B10B_Top_channel_up_o(RoraLink_8B10B_Top_channel_up_o), //output RoraLink_8B10B_Top_channel_up_o
+        .RoraLink_8B10B_Top_lane_up_o(RoraLink_8B10B_Top_lane_up_o), //output RoraLink_8B10B_Top_lane_up_o
+        .RoraLink_8B10B_Top_gt_pcs_rx_clk_o(RoraLink_8B10B_Top_gt_pcs_rx_clk_o), //output RoraLink_8B10B_Top_gt_pcs_rx_clk_o
+        .RoraLink_8B10B_Top_gt_pll_lock_o(RoraLink_8B10B_Top_gt_pll_lock_o), //output RoraLink_8B10B_Top_gt_pll_lock_o
+        .RoraLink_8B10B_Top_gt_rx_align_link_o(RoraLink_8B10B_Top_gt_rx_align_link_o), //output RoraLink_8B10B_Top_gt_rx_align_link_o
+        .RoraLink_8B10B_Top_gt_rx_pma_lock_o(RoraLink_8B10B_Top_gt_rx_pma_lock_o), //output RoraLink_8B10B_Top_gt_rx_pma_lock_o
+        .RoraLink_8B10B_Top_gt_rx_k_lock_o(RoraLink_8B10B_Top_gt_rx_k_lock_o), //output RoraLink_8B10B_Top_gt_rx_k_lock_o
+        .RoraLink_8B10B_Top_user_clk_i(RoraLink_8B10B_Top_user_clk_i), //input RoraLink_8B10B_Top_user_clk_i
+        .RoraLink_8B10B_Top_init_clk_i(RoraLink_8B10B_Top_init_clk_i), //input RoraLink_8B10B_Top_init_clk_i
+        .RoraLink_8B10B_Top_reset_i(RoraLink_8B10B_Top_reset_i), //input RoraLink_8B10B_Top_reset_i
+        .RoraLink_8B10B_Top_user_pll_locked_i(RoraLink_8B10B_Top_user_pll_locked_i), //input RoraLink_8B10B_Top_user_pll_locked_i
+        .RoraLink_8B10B_Top_gt_reset_i(RoraLink_8B10B_Top_gt_reset_i), //input RoraLink_8B10B_Top_gt_reset_i
+        .RoraLink_8B10B_Top_gt_pcs_rx_reset_i(RoraLink_8B10B_Top_gt_pcs_rx_reset_i) //input RoraLink_8B10B_Top_gt_pcs_rx_reset_i
+    );
+
+//--------Copy end-------------------

@@ -1,0 +1,25 @@
+//Copyright (C)2014-2025 Gowin Semiconductor Corporation.
+//All rights reserved. 
+//File Title: Physical Constraints file
+//Tool Version: V1.9.12 (64-bit)
+//Part Number: GW5AT-LV15MG132C1/I0
+//Device: GW5AT-15
+//Device Version: B
+//Created Time: Tue 04 21 10:44:21 2026
+
+//IO_LOC "lvdsDataOut_p[0]" P13,N13;
+//IO_PORT "lvdsDataOut_p[0]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+//IO_LOC "lvdsDataOut_p[1]" N12,P12;
+//IO_PORT "lvdsDataOut_p[1]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+//IO_LOC "lvdsDataOut_p[2]" P10,N10;
+//IO_PORT "lvdsDataOut_p[2]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+//IO_LOC "lvdsDataOut_p[3]" N8,P8;
+//IO_PORT "lvdsDataOut_p[3]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+//IO_LOC "lvdsOutClk_p" N9,P9;
+//IO_PORT "lvdsOutClk_p" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+IO_LOC "led" N1;
+IO_PORT "led" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "rst_n" P11;
+IO_PORT "rst_n" IO_TYPE=LVCMOS33 PULL_MODE=NONE BANK_VCCIO=3.3;
+IO_LOC "clk" N11;
+IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=NONE BANK_VCCIO=3.3;

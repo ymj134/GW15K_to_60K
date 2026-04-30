@@ -1,0 +1,29 @@
+-type SERDES
+-path E:/ymj_project/serdes/GW15K_to_60K/GW15K/src/serdes/
+-file_type vlg
+-file_name serdes
+-mod_name SerDes_Top
+-series GW5AT
+-device GW5AT-15
+-device_version B
+-package MBGA132
+-part_number GW5AT-LV15MG132C1/I0
+
+
+-global_reset disable
+-protocol_module_name0 RoraLink_8B10B_Top
+-RoraLink_8B10B_Topprotocol_module_type roralink8b10b
+-RoraLink_8B10B_TopReferenceClockSource Q0REFCLK0
+-RoraLink_8B10B_TopPLLSource CPLL
+-RoraLink_8B10B_TopDataWidthPerLane 4
+-RoraLink_8B10B_TopNumberoflanes 1
+-RoraLink_8B10B_TopDataFlowMode TX-onlySimplex
+-RoraLink_8B10B_TopInterface Framing
+-RoraLink_8B10B_TopFlowControl None
+-RoraLink_8B10B_TopBackChannel Timer
+-RoraLink_8B10B_TopLittleEndianSupport true
+-RoraLink_8B10B_TopCRC true
+-RoraLink_8B10B_TopEnableDRP false
+-RoraLink_8B10B_TopDRPPorts false
+-RoraLink_8B10B_TopQ0Lane0 true
+-RoraLink_8B10B_TopChannel0Selection Q0Lane0

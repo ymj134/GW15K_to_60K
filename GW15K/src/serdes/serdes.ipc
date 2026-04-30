@@ -1,0 +1,65 @@
+[General]
+ipc_version=4
+target_device=gw5at15b-001
+type=Serdes
+version=1.2
+
+[Config]
+LANG=0
+Q0_BIAS=7
+Synthesis_tool=GowinSynthesis
+file=serdes
+global_reset_enable=false
+module=SerDes_Top
+
+[All_access]
+Q0_LANE0_TX=Q0_LANE0_TX -> Q0_CPLL0 -> Q0_MUX0 -> Q0_REFCLK0
+
+[RoraLink%208B10B%3Aroralink_8b10b%3ARoraLink_8B10B_Top]
+ATT=7
+BOOST=9
+Back_Channel=Timer
+CRC=true
+CTC_Selection=SerDes
+ChannelSel0=Q0 Lane0
+ChannelSel1=Q0 Lane1
+ChannelSel2=Q0 Lane2
+ChannelSel3=Q0 Lane3
+ChannelSel4=Q0 Lane0
+ChannelSel5=Q0 Lane0
+ChannelSel6=Q0 Lane0
+ChannelSel7=Q0 Lane0
+Clock_Source=quad
+DIFFERENTIAL_SWING=900mV
+DRP_Ports=false
+Data_Width_Per_Lane=4
+Dataflow_Mode=TX-only Simplex
+Equalization_Mode=Auto
+FFEMODE=Auto
+FFE_C0=40
+FFE_C1=0
+FFE_CM=0
+Flow_Control=None
+Interface=Framing
+LANG=0
+Line_Rate=6.25
+Little_Endian_Support=true
+Loopback_Mode=OFF
+Master_Channel_Selection=Q0 Lane0
+Number_of_Lanes=1
+PLL_Selection=CPLL
+Read_Start_Depth_Cb=8
+Read_Start_Depth_Rcc=8
+Reference_CLK_Frequency=125.000
+Reference_CLK_Source=Q0 REFCLK0
+SD_THRESHOLD=100mV
+Scrambler_Descrambler=true
+Sequence_Period=11
+Synthesis_tool=GowinSynthesis
+file=roralink_8b10b
+ifChangedAllOfBias=true
+module=RoraLink_8B10B_Top
+recordlanes=Q0 Lane0
+target_device=gw5at15b-001
+type=roralink8b10b
+version=1.0
