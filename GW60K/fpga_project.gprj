@@ -5,17 +5,28 @@
     <Version>5</Version>
     <Device name="GW5AT-60B" pn="GW5AT-LV60PG484AC2/I1">gw5at60b-003</Device>
     <FileList>
+        <File path="src/DDR_Tick_Generator.v" type="file.verilog" enable="1"/>
         <File path="src/Gowin_PLL_DDR/Gowin_PLL_DDR.v" type="file.verilog" enable="1"/>
         <File path="src/Gowin_PLL_DDR/Gowin_PLL_DDR_mod.v" type="file.verilog" enable="1"/>
+        <File path="src/Reset.v" type="file.verilog" enable="1"/>
         <File path="src/Video_FIFO_256to32/Video_FIFO_256to32.v" type="file.verilog" enable="1"/>
         <File path="src/Video_WR_FIFO_256/Video_WR_FIFO_256.v" type="file.verilog" enable="1"/>
         <File path="src/adv7513_iic_init.v" type="file.verilog" enable="1"/>
+        <File path="src/adv7513_iic_wrapper.v" type="file.verilog" enable="1"/>
+        <File path="src/axi4_ctrl.v" type="file.verilog" enable="1"/>
+        <File path="src/clock_reset_60k.v" type="file.verilog" enable="1"/>
+        <File path="src/ddr3_axi_wrapper_60k.v" type="file.verilog" enable="1"/>
         <File path="src/ddr3_memory_interface/ddr3_memory_interface.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_pll/gowin_pll.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_pll/gowin_pll_mod.v" type="file.verilog" enable="1"/>
+        <File path="src/hdmi_720p_timing.v" type="file.verilog" enable="1"/>
+        <File path="src/hdmi_output_stage.v" type="file.verilog" enable="1"/>
         <File path="src/i2c_master/i2c_master.v" type="file.verilog" enable="1"/>
+        <File path="src/lcd_driver_opt.v" type="file.verilog" enable="1"/>
         <File path="src/pll_init.v" type="file.verilog" enable="1"/>
         <File path="src/pll_mDRP_intf.v" type="file.verilog" enable="1"/>
+        <File path="src/roralink_rx_wrapper.v" type="file.verilog" enable="1"/>
+        <File path="src/roralink_video_to_ddr_hdmi_b2.v" type="file.verilog" enable="1"/>
         <File path="src/serdes/roralink_8b10b/roralink_8b10b.v" type="file.verilog" enable="1"/>
         <File path="src/serdes/serdes.v" type="file.verilog" enable="1"/>
         <File path="src/testpattern.v" type="file.verilog" enable="1"/>
