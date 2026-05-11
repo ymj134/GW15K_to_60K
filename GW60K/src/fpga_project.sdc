@@ -10,4 +10,4 @@ create_clock -name clk -period 20 -waveform {0 10} [get_ports {clk}]
 
 
 //3.125G的约束
-create_clock -name rl_rx_clk -period 12.8-waveform {0 6.4} [get_nets {rl_rx_clk}]
+create_clock -name rl_rx_clk -period 12.8 -waveform {0 6.4} [get_nets {rl_rx_clk}]
