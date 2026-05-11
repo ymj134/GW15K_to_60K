@@ -24,8 +24,8 @@
 -en_lock true
 -dyn_dpa_en false
 -clkout0_bypass false
--odiv0_sel 6
--odiv0_frac_sel 2
+-odiv0_sel 12
+-odiv0_frac_sel 4
 -clkout0_dt_dir 1
 -clkout0_dt_step 0
 -dyn_pe0_sel false

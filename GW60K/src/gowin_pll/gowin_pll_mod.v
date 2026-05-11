@@ -6,7 +6,7 @@
 //Part Number: GW5AT-LV60PG484AC2/I1
 //Device: GW5AT-60
 //Device Version: B
-//Created Time: Thu Apr 30 14:27:55 2026
+//Created Time: Mon May 11 16:18:15 2026
 
 module Gowin_PLL_MOD (lock, clkout0, mdrdo, clkin, reset, mdclk, mdopc, mdainc, mdwdi);
 
@@ -64,7 +64,7 @@ PLLA PLLA_inst (
 defparam PLLA_inst.FCLKIN = "50";
 defparam PLLA_inst.IDIV_SEL = 2;
 defparam PLLA_inst.FBDIV_SEL = 1;
-defparam PLLA_inst.ODIV0_SEL = 6;
+defparam PLLA_inst.ODIV0_SEL = 12;
 defparam PLLA_inst.ODIV1_SEL = 8;
 defparam PLLA_inst.ODIV2_SEL = 8;
 defparam PLLA_inst.ODIV3_SEL = 8;
@@ -73,7 +73,7 @@ defparam PLLA_inst.ODIV5_SEL = 8;
 defparam PLLA_inst.ODIV6_SEL = 8;
 defparam PLLA_inst.MDIV_SEL = 37;
 defparam PLLA_inst.MDIV_FRAC_SEL = 1;
-defparam PLLA_inst.ODIV0_FRAC_SEL = 2;
+defparam PLLA_inst.ODIV0_FRAC_SEL = 4;
 defparam PLLA_inst.CLKOUT0_EN = "TRUE";
 defparam PLLA_inst.CLKOUT1_EN = "FALSE";
 defparam PLLA_inst.CLKOUT2_EN = "FALSE";

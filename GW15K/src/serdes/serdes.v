@@ -6,7 +6,7 @@
 //Part Number: GW5AT-LV15MG132C1/I0
 //Device: GW5AT-15
 //Device Version: B
-//Created Time: Thu Apr 30 16:29:25 2026
+//Created Time: Mon May 11 15:05:24 2026
 
 module SerDes_Top (RoraLink_8B10B_Top_sys_reset_o, RoraLink_8B10B_Top_user_tx_ready_o, RoraLink_8B10B_Top_hard_err_o, RoraLink_8B10B_Top_channel_up_o, RoraLink_8B10B_Top_lane_up_o, RoraLink_8B10B_Top_gt_pcs_tx_clk_o, RoraLink_8B10B_Top_gt_pll_lock_o, RoraLink_8B10B_Top_user_clk_i, RoraLink_8B10B_Top_init_clk_i, RoraLink_8B10B_Top_reset_i, RoraLink_8B10B_Top_user_pll_locked_i, RoraLink_8B10B_Top_user_tx_data_i, RoraLink_8B10B_Top_user_tx_strb_i, RoraLink_8B10B_Top_user_tx_valid_i, RoraLink_8B10B_Top_user_tx_last_i, RoraLink_8B10B_Top_gt_reset_i, RoraLink_8B10B_Top_gt_pcs_tx_reset_i);
 

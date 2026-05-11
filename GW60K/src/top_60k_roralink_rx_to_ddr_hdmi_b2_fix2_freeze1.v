@@ -7,13 +7,13 @@
 //   3) Cross rx_clk -> DDR clk_out through Video_WR_FIFO_256.
 //   4) AXI-write received video into DDR framebuffer.
 //   5) AXI-read DDR framebuffer through Video_FIFO_256to32.
-//   6) Output 720p60 RGB888 through verified ADV7513 HDMI path.
+//   6) Output 1080p60 RGB888 through verified ADV7513 HDMI path.
 //
 // Required generated/source modules:
 //   SerDes_Top                  // 60K RoraLink RX-only IP
 //   DDR3_Memory_Interface_Top   // AXI4 DDR3 IP, 256-bit data
 //   Gowin_PLL_DDR               // DDR memory_clk PLL
-//   Gowin_PLL                   // HDMI 74.25MHz pixel PLL
+//   Gowin_PLL                   // HDMI 148.5MHz pixel PLL
 //   pll_mDRP_intf
 //   adv7513_iic_init
 //   I2C_MASTER_Top
@@ -83,7 +83,7 @@ wire rst_n_50m = rst_sync[3];
 wire global_rst = ~rst_n_50m;
 
 // --------------------------------------------------------------------------
-// HDMI pixel PLL: 50MHz -> 74.25MHz
+// HDMI pixel PLL: 50MHz -> 148.5MHz
 // --------------------------------------------------------------------------
 wire pixel_clk;
 wire pixel_pll_lock;
@@ -331,7 +331,7 @@ wire [11:0] hdmi_x;
 wire [10:0] hdmi_y;
 wire        hdmi_frame_start;
 
-hdmi_720p_timing u_hdmi_timing (
+hdmi_1080p_timing u_hdmi_timing (
     .pixel_clk   (pixel_clk),
     .rst_n       (pixel_rst_n),
     .hs          (hdmi_hs_raw),
@@ -377,8 +377,8 @@ roralink_video_to_ddr_hdmi_b2 #(
     .AXI_ADDR_WIDTH (29),
     .AXI_DATA_WIDTH (256),
     .AXI_ID_WIDTH   (4),
-    .H_RES          (1280),
-    .V_RES          (720),
+    .H_RES          (1920),
+    .V_RES          (1080),
     .BURST_BEATS    (64)
 ) u_b2_bridge (
     .axi_clk              (clk_out),
@@ -572,72 +572,153 @@ assign O_led[0] = link_ok ? 1'b0 : led_cnt[25];
 assign O_led[1] = any_bad ? led_cnt[22] : (video_ok ? 1'b0 : led_cnt[25]);
 
 // --------------------------------------------------------------------------
-// ILA search prefix: ila60b2_
-// Kept signals are intentionally trimmed for B2_fix2 debug.
-// Suggested GAO clocks:
-//   RX-domain  : rl_rx_clk   -> ila60b2_rl_*, ila60b2_rx_*
-//   AXI-domain : clk_out     -> ila60b2_fb_*, ila60b2_*fifo*, ila60b2_bresp/rresp
-//   HDMI-domain: pixel_clk   -> ila60b2_hdmi_*, ila60b2_display_started
+// ILA signals for B2_fix2 debug
 // --------------------------------------------------------------------------
-(* keep = "true" *) wire [31:0] ila60b2_top_version             = 32'h60B2_7202;
+// 分成 3 组前缀：
+//
+// 1) ila60b2rx_*
+//    时钟域：rl_rx_clk
+//    用途：RoraLink RX / segment depacketizer / 写 FIFO 输入侧
+//
+// 2) ila60b2axi_*
+//    时钟域：clk_out
+//    用途：DDR AXI writer / DDR AXI reader / FIFO 水位
+//
+// 3) ila60b2hdmi_*
+//    时钟域：pixel_clk
+//    用途：HDMI 显示状态 / active video / 最终输出颜色
+// --------------------------------------------------------------------------
 
-// RoraLink RX-domain essentials
-(* keep = "true" *) wire        ila60b2_rl_channel_up           = rl_channel_up;
-(* keep = "true" *) wire        ila60b2_rl_lane_up              = rl_lane_up;
-(* keep = "true" *) wire        ila60b2_rl_pma_lock             = rl_gt_rx_pma_lock;
-(* keep = "true" *) wire        ila60b2_rl_k_lock               = rl_gt_rx_k_lock;
-(* keep = "true" *) wire        ila60b2_rl_align_link           = rl_gt_rx_align_link;
-(* keep = "true" *) wire        ila60b2_rl_rx_valid             = rl_rx_valid;
-(* keep = "true" *) wire        ila60b2_rl_rx_last              = rl_rx_last;
-(* keep = "true" *) wire [31:0] ila60b2_rl_rx_data              = rl_rx_data;
-(* keep = "true" *) wire        ila60b2_rl_crc_valid            = rl_crc_valid;
-(* keep = "true" *) wire        ila60b2_rl_crc_pass_fail_n      = rl_crc_pass_fail_n;
 
-// RX parser / DDR-write source state
-(* keep = "true" *) wire [31:0] ila60b2_rx_packet_cnt           = rx_packet_cnt;
-(* keep = "true" *) wire [31:0] ila60b2_rx_crc_pass_cnt         = rx_crc_pass_cnt;
-(* keep = "true" *) wire [15:0] ila60b2_rx_good_seg_cnt         = rx_good_seg_cnt;
-(* keep = "true" *) wire        ila60b2_rx_test_pass            = rx_test_pass;
-(* keep = "true" *) wire        ila60b2_rx_any_err_seen         = rx_any_err_seen;
-(* keep = "true" *) wire [11:0] ila60b2_rx_word_idx             = rx_word_idx_dbg;
-(* keep = "true" *) wire [10:0] ila60b2_rx_line_id              = rx_cur_line_id_dbg;
-(* keep = "true" *) wire [4:0]  ila60b2_rx_seg_id               = rx_cur_seg_id_dbg;
-(* keep = "true" *) wire        ila60b2_rx_capture_active       = rx_capture_active_dbg;
-(* keep = "true" *) wire        ila60b2_rx_payload_accept       = rx_payload_accept_dbg;
-(* keep = "true" *) wire        ila60b2_rx_wr_fifo_wren         = rx_wr_fifo_wren_dbg;
-(* keep = "true" *) wire        ila60b2_rx_header_err_seen      = rx_header_err_seen_dbg;
-(* keep = "true" *) wire        ila60b2_rx_last_err_seen        = rx_last_err_seen_dbg;
-(* keep = "true" *) wire        ila60b2_rx_crc_err_seen         = rx_crc_err_seen_dbg;
-(* keep = "true" *) wire        ila60b2_rx_overrun_err_seen     = rx_overrun_err_seen_dbg;
+// ==========================================================================
+// ILA #1: RoraLink RX clock domain
+// Clock: rl_rx_clk
+// Search prefix: ila60b2rx_
+// ==========================================================================
+(* keep = "true" *) wire [31:0] ila60b2rx_top_version        = 32'h60B2_0301;
 
-// AXI/DDR framebuffer state
-(* keep = "true" *) wire        ila60b2_init_calib_complete     = init_calib_complete;
-(* keep = "true" *) wire        ila60b2_first_frame_written     = fb_first_frame_written;
-(* keep = "true" *) wire        ila60b2_fb_error                = fb_error;
-(* keep = "true" *) wire [3:0]  ila60b2_fb_state                = fb_state;
-(* keep = "true" *) wire [15:0] ila60b2_wr_burst_idx            = fb_wr_burst_idx;
-(* keep = "true" *) wire [15:0] ila60b2_rd_burst_idx            = fb_rd_burst_idx;
-(* keep = "true" *) wire [15:0] ila60b2_wr_fifo_wr_count        = fb_wr_fifo_wr_count;
-(* keep = "true" *) wire [15:0] ila60b2_wr_fifo_rd_count        = fb_wr_fifo_rd_count;
-(* keep = "true" *) wire [15:0] ila60b2_rd_fifo_wr_count        = fb_rd_fifo_wr_count;
-(* keep = "true" *) wire [15:0] ila60b2_rd_fifo_rd_count        = fb_rd_fifo_rd_count;
-(* keep = "true" *) wire [1:0]  ila60b2_bresp                   = s_axi_bresp;
-(* keep = "true" *) wire [1:0]  ila60b2_rresp                   = s_axi_rresp;
+// Link status
+(* keep = "true" *) wire        ila60b2rx_gt_pll_ok          = rl_gt_pll_ok;
+(* keep = "true" *) wire        ila60b2rx_lane_up            = rl_lane_up;
+(* keep = "true" *) wire        ila60b2rx_channel_up         = rl_channel_up;
+(* keep = "true" *) wire        ila60b2rx_pma_lock           = rl_gt_rx_pma_lock;
+(* keep = "true" *) wire        ila60b2rx_k_lock             = rl_gt_rx_k_lock;
+(* keep = "true" *) wire        ila60b2rx_align_link         = rl_gt_rx_align_link;
 
-// HDMI output state
-(* keep = "true" *) wire        ila60b2_display_started         = fb_display_started;
-(* keep = "true" *) wire        ila60b2_underflow_seen          = fb_underflow_seen;
-(* keep = "true" *) wire        ila60b2_hdmi_de                 = hdmi_de_raw;
-(* keep = "true" *) wire [11:0] ila60b2_hdmi_x                  = hdmi_x;
-(* keep = "true" *) wire [10:0] ila60b2_hdmi_y                  = hdmi_y;
-(* keep = "true" *) wire [23:0] ila60b2_hdmi_rgb                = hdmi_rgb_d;
+// Raw RoraLink RX user interface
+(* keep = "true" *) wire        ila60b2rx_valid              = rl_rx_valid;
+(* keep = "true" *) wire        ila60b2rx_last               = rl_rx_last;
+(* keep = "true" *) wire [31:0] ila60b2rx_data               = rl_rx_data;
+(* keep = "true" *) wire [3:0]  ila60b2rx_strb               = rl_rx_strb;
+(* keep = "true" *) wire        ila60b2rx_crc_valid          = rl_crc_valid;
+(* keep = "true" *) wire        ila60b2rx_crc_pass_fail_n    = rl_crc_pass_fail_n;
+(* keep = "true" *) wire        ila60b2rx_hard_err           = rl_hard_err;
+(* keep = "true" *) wire        ila60b2rx_soft_err           = rl_soft_err;
+(* keep = "true" *) wire        ila60b2rx_frame_err          = rl_frame_err;
 
+// RX depacketizer state
+(* keep = "true" *) wire [31:0] ila60b2rx_packet_cnt         = rx_packet_cnt;
+(* keep = "true" *) wire [31:0] ila60b2rx_crc_pass_cnt       = rx_crc_pass_cnt;
+(* keep = "true" *) wire [15:0] ila60b2rx_good_seg_cnt       = rx_good_seg_cnt;
+(* keep = "true" *) wire        ila60b2rx_test_pass          = rx_test_pass;
+(* keep = "true" *) wire        ila60b2rx_any_err_seen       = rx_any_err_seen;
+
+(* keep = "true" *) wire [11:0] ila60b2rx_word_idx           = rx_word_idx_dbg;
+(* keep = "true" *) wire [10:0] ila60b2rx_line_id            = rx_cur_line_id_dbg;
+(* keep = "true" *) wire [4:0]  ila60b2rx_seg_id             = rx_cur_seg_id_dbg;
+
+(* keep = "true" *) wire        ila60b2rx_capture_active     = rx_capture_active_dbg;
+(* keep = "true" *) wire        ila60b2rx_payload_accept     = rx_payload_accept_dbg;
+(* keep = "true" *) wire        ila60b2rx_wr_fifo_wren       = rx_wr_fifo_wren_dbg;
+
+// RX parser error flags
+(* keep = "true" *) wire        ila60b2rx_header_err_seen    = rx_header_err_seen_dbg;
+(* keep = "true" *) wire        ila60b2rx_last_err_seen      = rx_last_err_seen_dbg;
+(* keep = "true" *) wire        ila60b2rx_crc_err_seen       = rx_crc_err_seen_dbg;
+(* keep = "true" *) wire        ila60b2rx_overrun_err_seen   = rx_overrun_err_seen_dbg;
+
+
+// ==========================================================================
+// ILA #2: DDR / AXI clock domain
+// Clock: clk_out
+// Search prefix: ila60b2axi_
+// ==========================================================================
+(* keep = "true" *) wire [31:0] ila60b2axi_top_version       = 32'h60B2_0A03;
+
+// DDR / framebuffer status
+(* keep = "true" *) wire        ila60b2axi_init_calib_done   = init_calib_complete;
+(* keep = "true" *) wire        ila60b2axi_ddr_pll_lock      = ddr_pll_lock;
+(* keep = "true" *) wire        ila60b2axi_ddr_rst           = ddr_rst;
+
+(* keep = "true" *) wire        ila60b2axi_first_frame_written = fb_first_frame_written;
+(* keep = "true" *) wire        ila60b2axi_display_started   = fb_display_started;
+(* keep = "true" *) wire        ila60b2axi_fb_error          = fb_error;
+(* keep = "true" *) wire        ila60b2axi_underflow_seen    = fb_underflow_seen;
+(* keep = "true" *) wire [3:0]  ila60b2axi_fb_state          = fb_state;
+
+(* keep = "true" *) wire [15:0] ila60b2axi_wr_burst_idx      = fb_wr_burst_idx;
+(* keep = "true" *) wire [15:0] ila60b2axi_rd_burst_idx      = fb_rd_burst_idx;
+
+// RX-to-DDR write FIFO watermarks
+(* keep = "true" *) wire [15:0] ila60b2axi_wr_fifo_wr_count  = fb_wr_fifo_wr_count;
+(* keep = "true" *) wire [15:0] ila60b2axi_wr_fifo_rd_count  = fb_wr_fifo_rd_count;
+
+// DDR-to-HDMI read FIFO watermarks
+(* keep = "true" *) wire [15:0] ila60b2axi_rd_fifo_wr_count  = fb_rd_fifo_wr_count;
+(* keep = "true" *) wire [15:0] ila60b2axi_rd_fifo_rd_count  = fb_rd_fifo_rd_count;
+
+// AXI write channel
+(* keep = "true" *) wire        ila60b2axi_awvalid           = s_axi_awvalid;
+(* keep = "true" *) wire        ila60b2axi_awready           = s_axi_awready;
+(* keep = "true" *) wire [28:0] ila60b2axi_awaddr            = s_axi_awaddr;
+(* keep = "true" *) wire [7:0]  ila60b2axi_awlen             = s_axi_awlen;
+
+(* keep = "true" *) wire        ila60b2axi_wvalid            = s_axi_wvalid;
+(* keep = "true" *) wire        ila60b2axi_wready            = s_axi_wready;
+(* keep = "true" *) wire        ila60b2axi_wlast             = s_axi_wlast;
+(* keep = "true" *) wire [31:0] ila60b2axi_wdata_lsb         = s_axi_wdata[31:0];
+
+(* keep = "true" *) wire        ila60b2axi_bvalid            = s_axi_bvalid;
+(* keep = "true" *) wire        ila60b2axi_bready            = s_axi_bready;
+(* keep = "true" *) wire [1:0]  ila60b2axi_bresp             = s_axi_bresp;
+
+// AXI read channel
+(* keep = "true" *) wire        ila60b2axi_arvalid           = s_axi_arvalid;
+(* keep = "true" *) wire        ila60b2axi_arready           = s_axi_arready;
+(* keep = "true" *) wire [28:0] ila60b2axi_araddr            = s_axi_araddr;
+(* keep = "true" *) wire [7:0]  ila60b2axi_arlen             = s_axi_arlen;
+
+(* keep = "true" *) wire        ila60b2axi_rvalid            = s_axi_rvalid;
+(* keep = "true" *) wire        ila60b2axi_rready            = s_axi_rready;
+(* keep = "true" *) wire        ila60b2axi_rlast             = s_axi_rlast;
+(* keep = "true" *) wire [1:0]  ila60b2axi_rresp             = s_axi_rresp;
+(* keep = "true" *) wire [31:0] ila60b2axi_rdata_lsb         = s_axi_rdata[31:0];
+
+
+// ==========================================================================
+// ILA #3: HDMI pixel clock domain
+// Clock: pixel_clk
+// Search prefix: ila60b2hdmi_
+// ==========================================================================
+(* keep = "true" *) wire [31:0] ila60b2hdmi_top_version      = 32'h60B2_0D03;
+
+(* keep = "true" *) wire        ila60b2hdmi_pixel_pll_lock   = pixel_pll_lock;
+(* keep = "true" *) wire        ila60b2hdmi_display_started  = fb_display_started;
+(* keep = "true" *) wire        ila60b2hdmi_fb_error         = fb_error;
+(* keep = "true" *) wire        ila60b2hdmi_underflow_seen   = fb_underflow_seen;
+
+(* keep = "true" *) wire        ila60b2hdmi_de               = hdmi_de_raw;
+(* keep = "true" *) wire        ila60b2hdmi_hs               = hdmi_hs_raw;
+(* keep = "true" *) wire        ila60b2hdmi_vs               = hdmi_vs_raw;
+(* keep = "true" *) wire [11:0] ila60b2hdmi_x                = hdmi_x;
+(* keep = "true" *) wire [10:0] ila60b2hdmi_y                = hdmi_y;
+(* keep = "true" *) wire [23:0] ila60b2hdmi_rgb              = hdmi_rgb_d;
 endmodule
 
 // ============================================================================
-// 720p60 timing generator
+// 1080p60 timing generator
 // ============================================================================
-module hdmi_720p_timing (
+module hdmi_1080p_timing (
     input  wire        pixel_clk,
     input  wire        rst_n,
     output reg         hs,
@@ -647,14 +728,14 @@ module hdmi_720p_timing (
     output reg [10:0]  y,
     output wire        frame_start
 );
-    localparam [15:0] H_TOTAL  = 16'd1650;
-    localparam [15:0] H_SYNC   = 16'd40;
-    localparam [15:0] H_BPORCH = 16'd220;
-    localparam [15:0] H_RES    = 16'd1280;
-    localparam [15:0] V_TOTAL  = 16'd750;
+    localparam [15:0] H_TOTAL  = 16'd2200;
+    localparam [15:0] H_SYNC   = 16'd44;
+    localparam [15:0] H_BPORCH = 16'd148;
+    localparam [15:0] H_RES    = 16'd1920;
+    localparam [15:0] V_TOTAL  = 16'd1125;
     localparam [15:0] V_SYNC   = 16'd5;
-    localparam [15:0] V_BPORCH = 16'd20;
-    localparam [15:0] V_RES    = 16'd720;
+    localparam [15:0] V_BPORCH = 16'd36;
+    localparam [15:0] V_RES    = 16'd1080;
     localparam [15:0] H_ACT_ST = H_SYNC + H_BPORCH;
     localparam [15:0] V_ACT_ST = V_SYNC + V_BPORCH;
 
@@ -707,7 +788,7 @@ endmodule
 
 // ============================================================================
 // RoraLink segmented video RX -> DDR AXI writer/reader bridge
-// B2_fix2 720p policy:
+// B2_fix2 policy:
 //   - Keep the proven DDR read/HDMI path from A2-1.
 //   - Use a lenient depacketizer for B2: header-driven capture, no payload
 //     checker in the write path.
@@ -719,8 +800,8 @@ module roralink_video_to_ddr_hdmi_b2 #(
     parameter integer AXI_ADDR_WIDTH = 29,
     parameter integer AXI_DATA_WIDTH = 256,
     parameter integer AXI_ID_WIDTH   = 4,
-    parameter integer H_RES          = 1280,
-    parameter integer V_RES          = 720,
+    parameter integer H_RES          = 1920,
+    parameter integer V_RES          = 1080,
     parameter integer BURST_BEATS    = 64
 )(
     input  wire                         axi_clk,
@@ -804,12 +885,12 @@ module roralink_video_to_ddr_hdmi_b2 #(
 );
     localparam [31:0] MAGIC            = 32'hA55A_6002;
     localparam [7:0]  FORMAT_RGB888_32 = 8'h01;
-    localparam [11:0] H12              = 12'd1280;
-    localparam [11:0] V12              = 12'd720;
-    localparam [10:0] LAST_LINE        = 11'd719;
-    localparam [4:0]  LAST_SEG         = 5'd4;
+    localparam [11:0] H12              = 12'd1920;
+    localparam [11:0] V12              = 12'd1080;
+    localparam [10:0] LAST_LINE        = 11'd1079;
+    localparam [4:0]  LAST_SEG         = 5'd7;
     localparam [11:0] SEG_PIXELS_FULL  = 12'd256;
-    localparam [11:0] SEG_PIXELS_LAST  = 12'd256;
+    localparam [11:0] SEG_PIXELS_LAST  = 12'd128;
     localparam [11:0] HEADER_WORDS     = 12'd4;
     localparam [15:0] STABLE_DELAY_MAX = 16'h3FFF;
     localparam [15:0] PASS_SEG_TH      = 16'd512;
@@ -1149,9 +1230,11 @@ module roralink_video_to_ddr_hdmi_b2 #(
     localparam [13:0]  FIFO_START_LEVEL = 14'd4096;
     localparam [10:0]  RD_FIFO_WR_SAFE_LEVEL = 11'd832;
 
-    // DEBUG: set to 1'b1 to freeze after the first complete frame.
-    // Default 0 for normal continuous 720p video transmission.
-    localparam DEBUG_FREEZE_AFTER_FIRST_FRAME = 1'b0;
+    // DEBUG_FREEZE_AFTER_FIRST_FRAME:
+    //   1'b1: write only the first complete frame, then stop DDR writes.
+    //         HDMI keeps reading the frozen first frame repeatedly.
+    //   1'b0: normal continuous write/read mode.
+    localparam DEBUG_FREEZE_AFTER_FIRST_FRAME = 1'b1;
 
     localparam [3:0]
         ST_IDLE  = 4'd0,
@@ -1248,19 +1331,25 @@ module roralink_video_to_ddr_hdmi_b2 #(
                     m_axi_rready  <= 1'b0;
 
                     if (!first_frame_written) begin
+                        // Before the first complete frame is written, DDR write has priority.
                         if (wr_burst_available) begin
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end
                     end else begin
+                        // Freeze test mode:
+                        // Once the first frame is written, stop all further AXI writes.
+                        // Keep DDR reads running so HDMI repeatedly displays the frozen frame.
                         if (!DEBUG_FREEZE_AFTER_FIRST_FRAME &&
-                            (wr_fifo_rnum >= 12'd1024) && wr_burst_available) begin
+                            (wr_fifo_rnum >= 12'd1024) &&
+                            wr_burst_available) begin
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end else if (rd_fifo_has_space) begin
                             m_axi_arvalid <= 1'b1;
                             state         <= ST_RD_AR;
-                        end else if (!DEBUG_FREEZE_AFTER_FIRST_FRAME && wr_burst_available) begin
+                        end else if (!DEBUG_FREEZE_AFTER_FIRST_FRAME &&
+                                     wr_burst_available) begin
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end

@@ -7,13 +7,13 @@
 //   3) Cross rx_clk -> DDR clk_out through Video_WR_FIFO_256.
 //   4) AXI-write received video into DDR framebuffer.
 //   5) AXI-read DDR framebuffer through Video_FIFO_256to32.
-//   6) Output 720p60 RGB888 through verified ADV7513 HDMI path.
+//   6) Output 1080p60 RGB888 through verified ADV7513 HDMI path.
 //
 // Required generated/source modules:
 //   SerDes_Top                  // 60K RoraLink RX-only IP
 //   DDR3_Memory_Interface_Top   // AXI4 DDR3 IP, 256-bit data
 //   Gowin_PLL_DDR               // DDR memory_clk PLL
-//   Gowin_PLL                   // HDMI 74.25MHz pixel PLL
+//   Gowin_PLL                   // HDMI 148.5MHz pixel PLL
 //   pll_mDRP_intf
 //   adv7513_iic_init
 //   I2C_MASTER_Top
@@ -83,7 +83,7 @@ wire rst_n_50m = rst_sync[3];
 wire global_rst = ~rst_n_50m;
 
 // --------------------------------------------------------------------------
-// HDMI pixel PLL: 50MHz -> 74.25MHz
+// HDMI pixel PLL: 50MHz -> 148.5MHz
 // --------------------------------------------------------------------------
 wire pixel_clk;
 wire pixel_pll_lock;
@@ -331,7 +331,7 @@ wire [11:0] hdmi_x;
 wire [10:0] hdmi_y;
 wire        hdmi_frame_start;
 
-hdmi_720p_timing u_hdmi_timing (
+hdmi_1080p_timing u_hdmi_timing (
     .pixel_clk   (pixel_clk),
     .rst_n       (pixel_rst_n),
     .hs          (hdmi_hs_raw),
@@ -361,24 +361,13 @@ wire [31:0] rx_crc_pass_cnt;
 wire [15:0] rx_good_seg_cnt;
 wire        rx_test_pass;
 wire        rx_any_err_seen;
-wire [11:0] rx_word_idx_dbg;
-wire [10:0] rx_cur_line_id_dbg;
-wire [4:0]  rx_cur_seg_id_dbg;
-wire        rx_capture_active_dbg;
-wire        rx_payload_accept_dbg;
-wire        rx_wr_fifo_wren_dbg;
-wire        rx_header_err_seen_dbg;
-wire        rx_last_err_seen_dbg;
-wire        rx_crc_err_seen_dbg;
-wire        rx_overrun_err_seen_dbg;
-wire [15:0] fb_wr_fifo_wr_count;
 
 roralink_video_to_ddr_hdmi_b2 #(
     .AXI_ADDR_WIDTH (29),
     .AXI_DATA_WIDTH (256),
     .AXI_ID_WIDTH   (4),
-    .H_RES          (1280),
-    .V_RES          (720),
+    .H_RES          (1920),
+    .V_RES          (1080),
     .BURST_BEATS    (64)
 ) u_b2_bridge (
     .axi_clk              (clk_out),
@@ -441,23 +430,12 @@ roralink_video_to_ddr_hdmi_b2 #(
     .rd_burst_idx_dbg     (fb_rd_burst_idx),
     .rd_fifo_wr_count_dbg (fb_rd_fifo_wr_count),
     .rd_fifo_rd_count_dbg (fb_rd_fifo_rd_count),
-    .wr_fifo_wr_count_dbg (fb_wr_fifo_wr_count),
     .wr_fifo_rd_count_dbg (fb_wr_fifo_rd_count),
     .rx_packet_cnt_dbg    (rx_packet_cnt),
     .rx_crc_pass_cnt_dbg  (rx_crc_pass_cnt),
     .rx_good_seg_cnt_dbg  (rx_good_seg_cnt),
     .rx_test_pass         (rx_test_pass),
-    .rx_any_err_seen      (rx_any_err_seen),
-    .rx_word_idx_dbg      (rx_word_idx_dbg),
-    .rx_cur_line_id_dbg   (rx_cur_line_id_dbg),
-    .rx_cur_seg_id_dbg    (rx_cur_seg_id_dbg),
-    .rx_capture_active_dbg(rx_capture_active_dbg),
-    .rx_payload_accept_dbg(rx_payload_accept_dbg),
-    .rx_wr_fifo_wren_dbg  (rx_wr_fifo_wren_dbg),
-    .rx_header_err_seen_dbg(rx_header_err_seen_dbg),
-    .rx_last_err_seen_dbg (rx_last_err_seen_dbg),
-    .rx_crc_err_seen_dbg  (rx_crc_err_seen_dbg),
-    .rx_overrun_err_seen_dbg(rx_overrun_err_seen_dbg)
+    .rx_any_err_seen      (rx_any_err_seen)
 );
 
 // --------------------------------------------------------------------------
@@ -573,71 +551,64 @@ assign O_led[1] = any_bad ? led_cnt[22] : (video_ok ? 1'b0 : led_cnt[25]);
 
 // --------------------------------------------------------------------------
 // ILA search prefix: ila60b2_
-// Kept signals are intentionally trimmed for B2_fix2 debug.
-// Suggested GAO clocks:
-//   RX-domain  : rl_rx_clk   -> ila60b2_rl_*, ila60b2_rx_*
-//   AXI-domain : clk_out     -> ila60b2_fb_*, ila60b2_*fifo*, ila60b2_bresp/rresp
-//   HDMI-domain: pixel_clk   -> ila60b2_hdmi_*, ila60b2_display_started
+// Use rl_rx_clk for RoraLink RX-domain signals, clk_out for AXI-domain signals,
+// and pixel_clk for HDMI-domain signals. These kept wires are grouped for easy
+// signal search; use the appropriate clock per GAO instance.
 // --------------------------------------------------------------------------
-(* keep = "true" *) wire [31:0] ila60b2_top_version             = 32'h60B2_7202;
-
-// RoraLink RX-domain essentials
-(* keep = "true" *) wire        ila60b2_rl_channel_up           = rl_channel_up;
-(* keep = "true" *) wire        ila60b2_rl_lane_up              = rl_lane_up;
-(* keep = "true" *) wire        ila60b2_rl_pma_lock             = rl_gt_rx_pma_lock;
-(* keep = "true" *) wire        ila60b2_rl_k_lock               = rl_gt_rx_k_lock;
-(* keep = "true" *) wire        ila60b2_rl_align_link           = rl_gt_rx_align_link;
-(* keep = "true" *) wire        ila60b2_rl_rx_valid             = rl_rx_valid;
-(* keep = "true" *) wire        ila60b2_rl_rx_last              = rl_rx_last;
-(* keep = "true" *) wire [31:0] ila60b2_rl_rx_data              = rl_rx_data;
-(* keep = "true" *) wire        ila60b2_rl_crc_valid            = rl_crc_valid;
-(* keep = "true" *) wire        ila60b2_rl_crc_pass_fail_n      = rl_crc_pass_fail_n;
-
-// RX parser / DDR-write source state
-(* keep = "true" *) wire [31:0] ila60b2_rx_packet_cnt           = rx_packet_cnt;
-(* keep = "true" *) wire [31:0] ila60b2_rx_crc_pass_cnt         = rx_crc_pass_cnt;
-(* keep = "true" *) wire [15:0] ila60b2_rx_good_seg_cnt         = rx_good_seg_cnt;
-(* keep = "true" *) wire        ila60b2_rx_test_pass            = rx_test_pass;
-(* keep = "true" *) wire        ila60b2_rx_any_err_seen         = rx_any_err_seen;
-(* keep = "true" *) wire [11:0] ila60b2_rx_word_idx             = rx_word_idx_dbg;
-(* keep = "true" *) wire [10:0] ila60b2_rx_line_id              = rx_cur_line_id_dbg;
-(* keep = "true" *) wire [4:0]  ila60b2_rx_seg_id               = rx_cur_seg_id_dbg;
-(* keep = "true" *) wire        ila60b2_rx_capture_active       = rx_capture_active_dbg;
-(* keep = "true" *) wire        ila60b2_rx_payload_accept       = rx_payload_accept_dbg;
-(* keep = "true" *) wire        ila60b2_rx_wr_fifo_wren         = rx_wr_fifo_wren_dbg;
-(* keep = "true" *) wire        ila60b2_rx_header_err_seen      = rx_header_err_seen_dbg;
-(* keep = "true" *) wire        ila60b2_rx_last_err_seen        = rx_last_err_seen_dbg;
-(* keep = "true" *) wire        ila60b2_rx_crc_err_seen         = rx_crc_err_seen_dbg;
-(* keep = "true" *) wire        ila60b2_rx_overrun_err_seen     = rx_overrun_err_seen_dbg;
-
-// AXI/DDR framebuffer state
-(* keep = "true" *) wire        ila60b2_init_calib_complete     = init_calib_complete;
-(* keep = "true" *) wire        ila60b2_first_frame_written     = fb_first_frame_written;
-(* keep = "true" *) wire        ila60b2_fb_error                = fb_error;
-(* keep = "true" *) wire [3:0]  ila60b2_fb_state                = fb_state;
-(* keep = "true" *) wire [15:0] ila60b2_wr_burst_idx            = fb_wr_burst_idx;
-(* keep = "true" *) wire [15:0] ila60b2_rd_burst_idx            = fb_rd_burst_idx;
-(* keep = "true" *) wire [15:0] ila60b2_wr_fifo_wr_count        = fb_wr_fifo_wr_count;
-(* keep = "true" *) wire [15:0] ila60b2_wr_fifo_rd_count        = fb_wr_fifo_rd_count;
-(* keep = "true" *) wire [15:0] ila60b2_rd_fifo_wr_count        = fb_rd_fifo_wr_count;
-(* keep = "true" *) wire [15:0] ila60b2_rd_fifo_rd_count        = fb_rd_fifo_rd_count;
-(* keep = "true" *) wire [1:0]  ila60b2_bresp                   = s_axi_bresp;
-(* keep = "true" *) wire [1:0]  ila60b2_rresp                   = s_axi_rresp;
-
-// HDMI output state
-(* keep = "true" *) wire        ila60b2_display_started         = fb_display_started;
-(* keep = "true" *) wire        ila60b2_underflow_seen          = fb_underflow_seen;
-(* keep = "true" *) wire        ila60b2_hdmi_de                 = hdmi_de_raw;
-(* keep = "true" *) wire [11:0] ila60b2_hdmi_x                  = hdmi_x;
-(* keep = "true" *) wire [10:0] ila60b2_hdmi_y                  = hdmi_y;
-(* keep = "true" *) wire [23:0] ila60b2_hdmi_rgb                = hdmi_rgb_d;
+(* keep = "true" *) wire [31:0] ila60b2_top_version            = 32'h60B2_0001;
+(* keep = "true" *) wire        ila60b2_init_calib_complete    = init_calib_complete;
+(* keep = "true" *) wire        ila60b2_ddr_pll_lock           = ddr_pll_lock;
+(* keep = "true" *) wire        ila60b2_pixel_pll_lock         = pixel_pll_lock;
+(* keep = "true" *) wire        ila60b2_rl_gt_pll_ok           = rl_gt_pll_ok;
+(* keep = "true" *) wire        ila60b2_rl_lane_up             = rl_lane_up;
+(* keep = "true" *) wire        ila60b2_rl_channel_up          = rl_channel_up;
+(* keep = "true" *) wire        ila60b2_rl_pma_lock            = rl_gt_rx_pma_lock;
+(* keep = "true" *) wire        ila60b2_rl_k_lock              = rl_gt_rx_k_lock;
+(* keep = "true" *) wire        ila60b2_rl_align_link          = rl_gt_rx_align_link;
+(* keep = "true" *) wire        ila60b2_rl_rx_valid            = rl_rx_valid;
+(* keep = "true" *) wire        ila60b2_rl_rx_last             = rl_rx_last;
+(* keep = "true" *) wire [31:0] ila60b2_rl_rx_data             = rl_rx_data;
+(* keep = "true" *) wire        ila60b2_rl_crc_valid           = rl_crc_valid;
+(* keep = "true" *) wire        ila60b2_rl_crc_pass_fail_n     = rl_crc_pass_fail_n;
+(* keep = "true" *) wire [31:0] ila60b2_rx_packet_cnt          = rx_packet_cnt;
+(* keep = "true" *) wire [31:0] ila60b2_rx_crc_pass_cnt        = rx_crc_pass_cnt;
+(* keep = "true" *) wire [15:0] ila60b2_rx_good_seg_cnt        = rx_good_seg_cnt;
+(* keep = "true" *) wire        ila60b2_rx_test_pass           = rx_test_pass;
+(* keep = "true" *) wire        ila60b2_rx_any_err_seen        = rx_any_err_seen;
+(* keep = "true" *) wire        ila60b2_first_frame_written    = fb_first_frame_written;
+(* keep = "true" *) wire        ila60b2_display_started        = fb_display_started;
+(* keep = "true" *) wire        ila60b2_fb_error               = fb_error;
+(* keep = "true" *) wire        ila60b2_underflow_seen         = fb_underflow_seen;
+(* keep = "true" *) wire [3:0]  ila60b2_fb_state               = fb_state;
+(* keep = "true" *) wire [15:0] ila60b2_wr_burst_idx           = fb_wr_burst_idx;
+(* keep = "true" *) wire [15:0] ila60b2_rd_burst_idx           = fb_rd_burst_idx;
+(* keep = "true" *) wire [15:0] ila60b2_wr_fifo_rd_count       = fb_wr_fifo_rd_count;
+(* keep = "true" *) wire [15:0] ila60b2_rd_fifo_wr_count       = fb_rd_fifo_wr_count;
+(* keep = "true" *) wire [15:0] ila60b2_rd_fifo_rd_count       = fb_rd_fifo_rd_count;
+(* keep = "true" *) wire        ila60b2_awvalid                = s_axi_awvalid;
+(* keep = "true" *) wire        ila60b2_awready                = s_axi_awready;
+(* keep = "true" *) wire        ila60b2_wvalid                 = s_axi_wvalid;
+(* keep = "true" *) wire        ila60b2_wready                 = s_axi_wready;
+(* keep = "true" *) wire        ila60b2_wlast                  = s_axi_wlast;
+(* keep = "true" *) wire        ila60b2_bvalid                 = s_axi_bvalid;
+(* keep = "true" *) wire [1:0]  ila60b2_bresp                  = s_axi_bresp;
+(* keep = "true" *) wire        ila60b2_arvalid                = s_axi_arvalid;
+(* keep = "true" *) wire        ila60b2_arready                = s_axi_arready;
+(* keep = "true" *) wire        ila60b2_rvalid                 = s_axi_rvalid;
+(* keep = "true" *) wire        ila60b2_rready                 = s_axi_rready;
+(* keep = "true" *) wire        ila60b2_rlast                  = s_axi_rlast;
+(* keep = "true" *) wire [1:0]  ila60b2_rresp                  = s_axi_rresp;
+(* keep = "true" *) wire        ila60b2_hdmi_de                = hdmi_de_raw;
+(* keep = "true" *) wire [11:0] ila60b2_hdmi_x                 = hdmi_x;
+(* keep = "true" *) wire [10:0] ila60b2_hdmi_y                 = hdmi_y;
+(* keep = "true" *) wire [23:0] ila60b2_hdmi_rgb               = hdmi_rgb_d;
 
 endmodule
 
 // ============================================================================
-// 720p60 timing generator
+// 1080p60 timing generator
 // ============================================================================
-module hdmi_720p_timing (
+module hdmi_1080p_timing (
     input  wire        pixel_clk,
     input  wire        rst_n,
     output reg         hs,
@@ -647,14 +618,14 @@ module hdmi_720p_timing (
     output reg [10:0]  y,
     output wire        frame_start
 );
-    localparam [15:0] H_TOTAL  = 16'd1650;
-    localparam [15:0] H_SYNC   = 16'd40;
-    localparam [15:0] H_BPORCH = 16'd220;
-    localparam [15:0] H_RES    = 16'd1280;
-    localparam [15:0] V_TOTAL  = 16'd750;
+    localparam [15:0] H_TOTAL  = 16'd2200;
+    localparam [15:0] H_SYNC   = 16'd44;
+    localparam [15:0] H_BPORCH = 16'd148;
+    localparam [15:0] H_RES    = 16'd1920;
+    localparam [15:0] V_TOTAL  = 16'd1125;
     localparam [15:0] V_SYNC   = 16'd5;
-    localparam [15:0] V_BPORCH = 16'd20;
-    localparam [15:0] V_RES    = 16'd720;
+    localparam [15:0] V_BPORCH = 16'd36;
+    localparam [15:0] V_RES    = 16'd1080;
     localparam [15:0] H_ACT_ST = H_SYNC + H_BPORCH;
     localparam [15:0] V_ACT_ST = V_SYNC + V_BPORCH;
 
@@ -704,23 +675,16 @@ module hdmi_720p_timing (
     end
 endmodule
 
-
 // ============================================================================
 // RoraLink segmented video RX -> DDR AXI writer/reader bridge
-// B2_fix2 720p policy:
-//   - Keep the proven DDR read/HDMI path from A2-1.
-//   - Use a lenient depacketizer for B2: header-driven capture, no payload
-//     checker in the write path.
-//   - Start DDR capture only from SOF: line_id=0, segment_id=0.
-//   - Do not let startup hard/frame error or payload checker block DDR output.
 // ============================================================================
 
 module roralink_video_to_ddr_hdmi_b2 #(
     parameter integer AXI_ADDR_WIDTH = 29,
     parameter integer AXI_DATA_WIDTH = 256,
     parameter integer AXI_ID_WIDTH   = 4,
-    parameter integer H_RES          = 1280,
-    parameter integer V_RES          = 720,
+    parameter integer H_RES          = 1920,
+    parameter integer V_RES          = 1080,
     parameter integer BURST_BEATS    = 64
 )(
     input  wire                         axi_clk,
@@ -784,37 +748,31 @@ module roralink_video_to_ddr_hdmi_b2 #(
     output reg [15:0]                   rd_burst_idx_dbg,
     output wire [15:0]                  rd_fifo_wr_count_dbg,
     output wire [15:0]                  rd_fifo_rd_count_dbg,
-    output wire [15:0]                  wr_fifo_wr_count_dbg,
     output wire [15:0]                  wr_fifo_rd_count_dbg,
     output reg [31:0]                   rx_packet_cnt_dbg,
     output reg [31:0]                   rx_crc_pass_cnt_dbg,
     output reg [15:0]                   rx_good_seg_cnt_dbg,
     output reg                          rx_test_pass,
-    output wire                         rx_any_err_seen,
-    output wire [11:0]                  rx_word_idx_dbg,
-    output wire [10:0]                  rx_cur_line_id_dbg,
-    output wire [4:0]                   rx_cur_seg_id_dbg,
-    output wire                         rx_capture_active_dbg,
-    output wire                         rx_payload_accept_dbg,
-    output wire                         rx_wr_fifo_wren_dbg,
-    output wire                         rx_header_err_seen_dbg,
-    output wire                         rx_last_err_seen_dbg,
-    output wire                         rx_crc_err_seen_dbg,
-    output wire                         rx_overrun_err_seen_dbg
+    output wire                         rx_any_err_seen
 );
+    // ----------------------------------------------------------------------
+    // Packet constants, identical to 15K B1 TX.
+    // ----------------------------------------------------------------------
     localparam [31:0] MAGIC            = 32'hA55A_6002;
     localparam [7:0]  FORMAT_RGB888_32 = 8'h01;
-    localparam [11:0] H12              = 12'd1280;
-    localparam [11:0] V12              = 12'd720;
-    localparam [10:0] LAST_LINE        = 11'd719;
-    localparam [4:0]  LAST_SEG         = 5'd4;
+    localparam [11:0] H12              = 12'd1920;
+    localparam [11:0] V12              = 12'd1080;
+    localparam [10:0] LAST_LINE        = 11'd1079;
+    localparam [4:0]  LAST_SEG         = 5'd7;
     localparam [11:0] SEG_PIXELS_FULL  = 12'd256;
-    localparam [11:0] SEG_PIXELS_LAST  = 12'd256;
+    localparam [11:0] SEG_PIXELS_LAST  = 12'd128;
     localparam [11:0] HEADER_WORDS     = 12'd4;
     localparam [15:0] STABLE_DELAY_MAX = 16'h3FFF;
     localparam [15:0] PASS_SEG_TH      = 16'd512;
 
-    // RX reset and channel-up stable gate.
+    // ----------------------------------------------------------------------
+    // RX reset and stable gate.
+    // ----------------------------------------------------------------------
     reg [3:0] rx_rst_shr = 4'hF;
     always @(posedge rx_clk or posedge rx_rst_async) begin
         if (rx_rst_async)
@@ -846,6 +804,9 @@ module roralink_video_to_ddr_hdmi_b2 #(
     wire rx_active = check_enable && rx_channel_up && !rx_rst_base;
     wire rx_fire   = rx_active && rx_user_valid;
 
+    // ----------------------------------------------------------------------
+    // Expected data helper functions, copied from the B1 checker style.
+    // ----------------------------------------------------------------------
     function [11:0] segment_x_base;
         input [4:0] s;
         begin
@@ -856,64 +817,181 @@ module roralink_video_to_ddr_hdmi_b2 #(
     function [11:0] segment_payload_words;
         input [4:0] s;
         begin
-            segment_payload_words = (s == LAST_SEG) ? SEG_PIXELS_LAST : SEG_PIXELS_FULL;
+            if (s == LAST_SEG)
+                segment_payload_words = SEG_PIXELS_LAST;
+            else
+                segment_payload_words = SEG_PIXELS_FULL;
         end
     endfunction
 
-    // Minimal header fields.
-    wire [15:0] w1_frame = rx_user_data[31:16];
-    wire [10:0] w1_line  = rx_user_data[15:5];
-    wire [4:0]  w1_seg   = rx_user_data[4:0];
-    wire [7:0]  w2_format = rx_user_data[31:24];
-    wire [11:0] w2_x_base = rx_user_data[23:12];
-    wire [11:0] w2_payload_words = rx_user_data[11:0];
-    wire [11:0] w3_width = rx_user_data[23:12];
-    wire [11:0] w3_height = rx_user_data[11:0];
+    function [7:0] expected_flags;
+        input [10:0] line;
+        input [4:0] seg;
+        begin
+            expected_flags = {
+                4'b0000,
+                (seg == 5'd0),
+                (seg == LAST_SEG),
+                ((line == LAST_LINE) && (seg == LAST_SEG)),
+                ((line == 11'd0) && (seg == 5'd0))
+            };
+        end
+    endfunction
 
-    wire        wr_fifo_full;
-    wire        wr_fifo_empty;
-    wire        wr_fifo_aempty;
-    wire        wr_fifo_afull;
-    wire [255:0] wr_fifo_q;
-    wire [11:0] wr_fifo_wnum;
-    wire [11:0] wr_fifo_rnum;
-    reg         wr_fifo_rden;
+    function [23:0] colorbar_rgb;
+        input [11:0] x;
+        input [10:0] y;
+        begin
+            if (x < 12'd240)
+                colorbar_rgb = 24'hFF_FF_FF;
+            else if (x < 12'd480)
+                colorbar_rgb = 24'hFF_FF_00;
+            else if (x < 12'd720)
+                colorbar_rgb = 24'h00_FF_FF;
+            else if (x < 12'd960)
+                colorbar_rgb = 24'h00_FF_00;
+            else if (x < 12'd1200)
+                colorbar_rgb = 24'hFF_00_FF;
+            else if (x < 12'd1440)
+                colorbar_rgb = 24'hFF_00_00;
+            else if (x < 12'd1680)
+                colorbar_rgb = 24'h00_00_FF;
+            else
+                colorbar_rgb = 24'h00_00_00;
+        end
+    endfunction
 
-    // RX depacketizer.
+    function [31:0] expected_payload_word;
+        input [11:0] x;
+        input [10:0] y;
+        begin
+            expected_payload_word = {8'h00, colorbar_rgb(x, y)};
+        end
+    endfunction
+
+    function [15:0] next_frame_id_func;
+        input [15:0] f;
+        input [10:0] l;
+        input [4:0] s;
+        begin
+            if ((l == LAST_LINE) && (s == LAST_SEG))
+                next_frame_id_func = f + 1'b1;
+            else
+                next_frame_id_func = f;
+        end
+    endfunction
+
+    function [10:0] next_line_id_func;
+        input [10:0] l;
+        input [4:0] s;
+        begin
+            if (s == LAST_SEG) begin
+                if (l == LAST_LINE)
+                    next_line_id_func = 11'd0;
+                else
+                    next_line_id_func = l + 1'b1;
+            end else begin
+                next_line_id_func = l;
+            end
+        end
+    endfunction
+
+    function [4:0] next_seg_id_func;
+        input [4:0] s;
+        begin
+            if (s == LAST_SEG)
+                next_seg_id_func = 5'd0;
+            else
+                next_seg_id_func = s + 1'b1;
+        end
+    endfunction
+
+    // ----------------------------------------------------------------------
+    // RoraLink packet depacketizer/checker and 8x32 -> 256 aggregation.
+    // B2_fix1 important changes:
+    //   1. Align to RoraLink frame boundary before parsing, like B1.
+    //   2. Start DDR capture only at clean SOF: line_id=0 and segment_id=0.
+    //   3. Do not reset the write FIFO with stream_active/capture_active.
+    // ----------------------------------------------------------------------
     reg        rx_aligned       = 1'b0;
+    reg        seq_initialized  = 1'b0;
     reg        capture_active   = 1'b0;
-    reg        capture_this_pkt = 1'b0;
-    reg        packet_magic_ok  = 1'b0;
-    reg        packet_header_ok = 1'b0;
     reg [11:0] word_idx         = 12'd0;
     reg [15:0] cur_frame_id     = 16'd0;
     reg [10:0] cur_line_id      = 11'd0;
     reg [4:0]  cur_seg_id       = 5'd0;
     reg [11:0] cur_x_base       = 12'd0;
     reg [11:0] cur_payload_words= 12'd0;
-    reg [255:0] rx_pack_reg     = 256'd0;
+    reg [7:0]  cur_flags        = 8'd0;
+    reg [15:0] exp_frame_id     = 16'd0;
+    reg [10:0] exp_line_id      = 11'd0;
+    reg [4:0]  exp_seg_id       = 5'd0;
+    reg        packet_err       = 1'b0;
+    reg        capture_this_pkt = 1'b0;
+
+    reg [255:0] rx_pack_reg    = 256'd0;
     reg [255:0] rx_pack_next;
-    reg [255:0] rx_fifo_wdata   = 256'd0;
-    reg         rx_fifo_wren    = 1'b0;
+    reg [255:0] rx_fifo_wdata  = 256'd0;
+    reg         rx_fifo_wren   = 1'b0;
 
-    reg [31:0] rx_packet_cnt    = 32'd0;
-    reg [31:0] rx_crc_pass_cnt  = 32'd0;
-    reg [15:0] rx_good_seg_cnt  = 16'd0;
-    reg [31:0] rx_valid_cnt     = 32'd0;
+    reg [31:0] rx_valid_cnt    = 32'd0;
+    reg [31:0] rx_packet_cnt   = 32'd0;
+    reg [31:0] rx_crc_valid_cnt= 32'd0;
+    reg [31:0] rx_crc_pass_cnt = 32'd0;
+    reg [15:0] rx_good_seg_cnt = 16'd0;
 
+    reg payload_err_seen = 1'b0;
     reg header_err_seen  = 1'b0;
+    reg seq_err_seen     = 1'b0;
     reg last_err_seen    = 1'b0;
     reg crc_err_seen     = 1'b0;
     reg strb_err_seen    = 1'b0;
     reg overrun_err_seen = 1'b0;
+    reg hard_err_seen    = 1'b0;
+    reg soft_err_seen    = 1'b0;
+    reg frame_err_seen   = 1'b0;
 
-    wire [11:0] payload_pos    = word_idx - HEADER_WORDS;
-    wire        payload_region = (word_idx >= HEADER_WORDS) &&
-                                 (word_idx < (HEADER_WORDS + cur_payload_words));
-    wire        exp_last_now   = rx_aligned && (word_idx == (HEADER_WORDS + cur_payload_words - 12'd1));
-    wire        payload_accept = rx_fire && payload_region && capture_this_pkt && packet_header_ok;
+    wire [15:0] w1_frame = rx_user_data[31:16];
+    wire [10:0] w1_line  = rx_user_data[15:5];
+    wire [4:0]  w1_seg   = rx_user_data[4:0];
+    wire [7:0]  w2_format = rx_user_data[31:24];
+    wire [11:0] w2_x_base = rx_user_data[23:12];
+    wire [11:0] w2_payload_words = rx_user_data[11:0];
+    wire [7:0]  w3_flags = rx_user_data[31:24];
+    wire [11:0] w3_width = rx_user_data[23:12];
+    wire [11:0] w3_height = rx_user_data[11:0];
 
-    assign rx_any_err_seen = header_err_seen | last_err_seen | crc_err_seen | strb_err_seen | overrun_err_seen;
+    wire [11:0] payload_pos = word_idx - HEADER_WORDS;
+    wire [11:0] payload_x   = cur_x_base + payload_pos;
+    wire [31:0] expected_payload_now = expected_payload_word(payload_x, cur_line_id);
+    wire [31:0] expected_word_now = (word_idx == 12'd0) ? MAGIC :
+                                    (word_idx == 12'd1) ? {exp_frame_id, exp_line_id, exp_seg_id} :
+                                    (word_idx == 12'd2) ? {FORMAT_RGB888_32, segment_x_base(cur_seg_id), segment_payload_words(cur_seg_id)} :
+                                    (word_idx == 12'd3) ? {expected_flags(cur_line_id, cur_seg_id), H12, V12} :
+                                    expected_payload_now;
+
+    wire exp_last_now = rx_aligned && (word_idx == (HEADER_WORDS + cur_payload_words - 12'd1));
+
+    wire magic_bad_now   = rx_fire && rx_aligned && (word_idx == 12'd0) && (rx_user_data != MAGIC);
+    wire word1_bad_now   = rx_fire && rx_aligned && (word_idx == 12'd1) && seq_initialized &&
+                           ((w1_frame != exp_frame_id) || (w1_line != exp_line_id) || (w1_seg != exp_seg_id));
+    wire word2_bad_now   = rx_fire && rx_aligned && (word_idx == 12'd2) &&
+                           ((w2_format != FORMAT_RGB888_32) ||
+                            (w2_x_base != segment_x_base(cur_seg_id)) ||
+                            (w2_payload_words != segment_payload_words(cur_seg_id)) ||
+                            (cur_seg_id > LAST_SEG));
+    wire word3_bad_now   = rx_fire && rx_aligned && (word_idx == 12'd3) &&
+                           ((w3_flags != expected_flags(cur_line_id, cur_seg_id)) ||
+                            (w3_width != H12) ||
+                            (w3_height != V12));
+    wire header_bad_now  = magic_bad_now | word1_bad_now | word2_bad_now | word3_bad_now;
+    wire payload_bad_now = rx_fire && rx_aligned && (word_idx >= HEADER_WORDS) &&
+                           (word_idx < (HEADER_WORDS + cur_payload_words)) &&
+                           (rx_user_data != expected_payload_now);
+    wire strb_bad_now    = rx_fire && rx_aligned && (rx_user_strb != 4'hF);
+    wire last_bad_now    = rx_fire && rx_aligned && (rx_user_last != exp_last_now);
+    wire crc_bad_now     = rx_active && rx_crc_valid && !rx_crc_pass_fail_n;
+    wire any_now_core    = header_bad_now | payload_bad_now | strb_bad_now | last_bad_now | crc_bad_now;
 
     always @* begin
         rx_pack_next = rx_pack_reg;
@@ -929,52 +1007,83 @@ module roralink_video_to_ddr_hdmi_b2 #(
         endcase
     end
 
+    wire wr_fifo_full;
+    wire wr_fifo_empty;
+    wire wr_fifo_aempty;
+    wire wr_fifo_afull;
+    wire [255:0] wr_fifo_q;
+    wire [11:0] wr_fifo_wnum;
+    wire [11:0] wr_fifo_rnum;
+    reg         wr_fifo_rden;
+
+    assign rx_any_err_seen = payload_err_seen | header_err_seen | seq_err_seen |
+                             last_err_seen | crc_err_seen | strb_err_seen |
+                             overrun_err_seen;
+
     always @(posedge rx_clk or posedge rx_rst_base) begin
         if (rx_rst_base) begin
             rx_aligned          <= 1'b0;
+            seq_initialized     <= 1'b0;
             capture_active      <= 1'b0;
-            capture_this_pkt    <= 1'b0;
-            packet_magic_ok     <= 1'b0;
-            packet_header_ok    <= 1'b0;
             word_idx            <= 12'd0;
             cur_frame_id        <= 16'd0;
             cur_line_id         <= 11'd0;
             cur_seg_id          <= 5'd0;
             cur_x_base          <= 12'd0;
             cur_payload_words   <= 12'd0;
+            cur_flags           <= 8'd0;
+            exp_frame_id        <= 16'd0;
+            exp_line_id         <= 11'd0;
+            exp_seg_id          <= 5'd0;
+            packet_err          <= 1'b0;
+            capture_this_pkt    <= 1'b0;
             rx_pack_reg         <= 256'd0;
             rx_fifo_wdata       <= 256'd0;
             rx_fifo_wren        <= 1'b0;
+            rx_valid_cnt        <= 32'd0;
             rx_packet_cnt       <= 32'd0;
+            rx_crc_valid_cnt    <= 32'd0;
             rx_crc_pass_cnt     <= 32'd0;
             rx_good_seg_cnt     <= 16'd0;
-            rx_valid_cnt        <= 32'd0;
             rx_packet_cnt_dbg   <= 32'd0;
             rx_crc_pass_cnt_dbg <= 32'd0;
             rx_good_seg_cnt_dbg <= 16'd0;
             rx_test_pass        <= 1'b0;
+            payload_err_seen    <= 1'b0;
             header_err_seen     <= 1'b0;
+            seq_err_seen        <= 1'b0;
             last_err_seen       <= 1'b0;
             crc_err_seen        <= 1'b0;
             strb_err_seen       <= 1'b0;
             overrun_err_seen    <= 1'b0;
+            hard_err_seen       <= 1'b0;
+            soft_err_seen       <= 1'b0;
+            frame_err_seen      <= 1'b0;
         end else begin
             rx_fifo_wren <= 1'b0;
 
             if (!rx_active) begin
                 rx_aligned       <= 1'b0;
+                seq_initialized  <= 1'b0;
                 capture_active   <= 1'b0;
-                capture_this_pkt <= 1'b0;
                 word_idx         <= 12'd0;
+                packet_err       <= 1'b0;
+                capture_this_pkt <= 1'b0;
                 rx_test_pass     <= 1'b0;
             end else begin
+                // Keep these only as debug startup indicators. They do not block pass.
+                if (rx_hard_err)  hard_err_seen  <= 1'b1;
+                if (rx_soft_err)  soft_err_seen  <= 1'b1;
+                if (rx_frame_err) frame_err_seen <= 1'b1;
+
                 if (rx_crc_valid) begin
+                    rx_crc_valid_cnt <= rx_crc_valid_cnt + 1'b1;
                     if (rx_crc_pass_fail_n) begin
                         rx_crc_pass_cnt     <= rx_crc_pass_cnt + 1'b1;
                         rx_crc_pass_cnt_dbg <= rx_crc_pass_cnt + 1'b1;
                     end else begin
-                        // Count it, but do not stop capture in B2_fix2.
-                        crc_err_seen <= 1'b1;
+                        crc_err_seen   <= 1'b1;
+                        capture_active <= 1'b0;
                     end
                 end
 
@@ -982,68 +1091,78 @@ module roralink_video_to_ddr_hdmi_b2 #(
                     rx_valid_cnt <= rx_valid_cnt + 1'b1;
 
                     if (!rx_aligned) begin
-                        // Throw away the current partial frame after startup.
+                        // Discard any partial packet after startup; parse from the next packet.
                         if (rx_user_last) begin
-                            rx_aligned <= 1'b1;
-                            word_idx   <= 12'd0;
+                            rx_aligned       <= 1'b1;
+                            word_idx         <= 12'd0;
+                            packet_err       <= 1'b0;
+                            capture_this_pkt <= 1'b0;
                         end
                     end else begin
                         if (word_idx == 12'd0) begin
-                            packet_magic_ok  <= (rx_user_data == MAGIC);
-                            packet_header_ok <= (rx_user_data == MAGIC);
-                            capture_this_pkt <= capture_active;
+                            packet_err       <= 1'b0;
+                            capture_this_pkt <= 1'b0;
                             rx_pack_reg      <= 256'd0;
-                            if (rx_user_data != MAGIC)
-                                header_err_seen <= 1'b1;
                         end
+
+                        if (rx_user_strb != 4'hF)
+                            strb_err_seen <= 1'b1;
 
                         if (word_idx == 12'd1) begin
                             cur_frame_id <= w1_frame;
                             cur_line_id  <= w1_line;
                             cur_seg_id   <= w1_seg;
 
-                            if ((w1_line > LAST_LINE) || (w1_seg > LAST_SEG)) begin
-                                packet_header_ok <= 1'b0;
-                                header_err_seen  <= 1'b1;
+                            if (!seq_initialized) begin
+                                exp_frame_id    <= w1_frame;
+                                exp_line_id     <= w1_line;
+                                exp_seg_id      <= w1_seg;
+                                seq_initialized <= 1'b1;
                             end
 
-                            // Start DDR capture from a clean frame boundary.
-                            // Once started, continue writing subsequent packets.
-                            if (packet_magic_ok && (w1_line == 11'd0) && (w1_seg == 5'd0)) begin
+                            // Only start writing DDR from a true frame boundary.
+                            if ((w1_line == 11'd0) && (w1_seg == 5'd0) && !packet_err) begin
                                 capture_active   <= 1'b1;
                                 capture_this_pkt <= 1'b1;
                                 rx_pack_reg      <= 256'd0;
                             end else begin
-                                capture_this_pkt <= capture_active && packet_magic_ok;
+                                capture_this_pkt <= capture_active;
                             end
                         end
 
                         if (word_idx == 12'd2) begin
                             cur_x_base        <= w2_x_base;
                             cur_payload_words <= w2_payload_words;
-                            if ((w2_format != FORMAT_RGB888_32) ||
-                                (w2_x_base != segment_x_base(cur_seg_id)) ||
-                                (w2_payload_words != segment_payload_words(cur_seg_id))) begin
-                                packet_header_ok <= 1'b0;
-                                header_err_seen  <= 1'b1;
-                            end
                         end
 
-                        if (word_idx == 12'd3) begin
-                            if ((w3_width != H12) || (w3_height != V12)) begin
-                                packet_header_ok <= 1'b0;
-                                header_err_seen  <= 1'b1;
+                        if (word_idx == 12'd3)
+                            cur_flags <= w3_flags;
+
+                        if (any_now_core) begin
+                            packet_err <= 1'b1;
+                            if (header_bad_now) begin
+                                header_err_seen <= 1'b1;
+                                if (word1_bad_now)
+                                    seq_err_seen <= 1'b1;
                             end
+                            if (payload_bad_now)
+                                payload_err_seen <= 1'b1;
+                            if (strb_bad_now)
+                                strb_err_seen <= 1'b1;
+                            if (last_bad_now)
+                                last_err_seen <= 1'b1;
+                            if (crc_bad_now)
+                                crc_err_seen <= 1'b1;
+
+                            // Stop feeding DDR on protocol error; wait for next clean SOF.
+                            if (header_bad_now | payload_bad_now | strb_bad_now | last_bad_now)
+                                capture_active <= 1'b0;
                         end
 
-                        if (rx_user_strb != 4'hF)
-                            strb_err_seen <= 1'b1;
+                        if ((word_idx >= HEADER_WORDS) && (word_idx < (HEADER_WORDS + cur_payload_words))) begin
+                            rx_pack_reg <= rx_pack_next;
 
-                        // B2_fix2: no payload comparison. If header says this is a
-                        // payload word, pack it and feed the DDR write FIFO.
-                        if (payload_region) begin
-                            if (payload_accept) begin
-                                rx_pack_reg <= rx_pack_next;
+                            if (capture_this_pkt && !packet_err && !any_now_core) begin
                                 if (payload_pos[2:0] == 3'd7) begin
                                     if (wr_fifo_full) begin
                                         overrun_err_seen <= 1'b1;
@@ -1060,30 +1179,36 @@ module roralink_video_to_ddr_hdmi_b2 #(
                             rx_packet_cnt     <= rx_packet_cnt + 1'b1;
                             rx_packet_cnt_dbg <= rx_packet_cnt + 1'b1;
 
-                            if (!exp_last_now)
-                                last_err_seen <= 1'b1;
-
-                            if (packet_header_ok && exp_last_now) begin
+                            if (!(packet_err | any_now_core)) begin
                                 if (rx_good_seg_cnt != 16'hFFFF)
                                     rx_good_seg_cnt <= rx_good_seg_cnt + 1'b1;
                                 rx_good_seg_cnt_dbg <= rx_good_seg_cnt + 1'b1;
                             end
 
-                            word_idx <= 12'd0;
+                            // Update expected sequence using the completed packet.
+                            exp_frame_id <= next_frame_id_func(cur_frame_id, cur_line_id, cur_seg_id);
+                            exp_line_id  <= next_line_id_func(cur_line_id, cur_seg_id);
+                            exp_seg_id   <= next_seg_id_func(cur_seg_id);
+                            word_idx     <= 12'd0;
+                            packet_err   <= 1'b0;
                         end else begin
-                            if (exp_last_now)
-                                last_err_seen <= 1'b1;
                             word_idx <= word_idx + 1'b1;
                         end
                     end
                 end
 
-                if ((rx_good_seg_cnt >= PASS_SEG_TH) && !overrun_err_seen && !strb_err_seen && !last_err_seen && !crc_err_seen)
+                if ((rx_crc_pass_cnt >= PASS_SEG_TH) &&
+                    (rx_good_seg_cnt  >= PASS_SEG_TH) &&
+                    !payload_err_seen && !header_err_seen && !seq_err_seen &&
+                    !last_err_seen && !crc_err_seen && !strb_err_seen && !overrun_err_seen) begin
                     rx_test_pass <= 1'b1;
+                end
             end
         end
     end
 
+    // B2_fix1: FIFO reset is not tied to capture_active/stream_active anymore.
+    // This avoids releasing reset in the middle of the SOF packet and losing pixels.
     wire wr_fifo_reset = rx_rst_base | !check_enable;
 
     Video_WR_FIFO_256 u_video_wr_fifo_256 (
@@ -1102,18 +1227,9 @@ module roralink_video_to_ddr_hdmi_b2 #(
         .Full         (wr_fifo_full)
     );
 
-    assign rx_word_idx_dbg          = word_idx;
-    assign rx_cur_line_id_dbg       = cur_line_id;
-    assign rx_cur_seg_id_dbg        = cur_seg_id;
-    assign rx_capture_active_dbg    = capture_active;
-    assign rx_payload_accept_dbg    = payload_accept;
-    assign rx_wr_fifo_wren_dbg      = rx_fifo_wren;
-    assign rx_header_err_seen_dbg   = header_err_seen;
-    assign rx_last_err_seen_dbg     = last_err_seen;
-    assign rx_crc_err_seen_dbg      = crc_err_seen;
-    assign rx_overrun_err_seen_dbg  = overrun_err_seen;
-
+    // ----------------------------------------------------------------------
     // DDR read-side FIFO: 256bit clk_out -> 32bit pixel_clk.
+    // ----------------------------------------------------------------------
     wire        rd_fifo_rst = axi_rst | !first_frame_written;
     reg         rd_fifo_wren;
     wire [31:0] rd_fifo_q;
@@ -1141,17 +1257,13 @@ module roralink_video_to_ddr_hdmi_b2 #(
         .Full         (rd_fifo_full)
     );
 
-    localparam integer PIXELS_PER_BEAT  = AXI_DATA_WIDTH / 32;
-    localparam integer FRAME_PIXELS     = H_RES * V_RES;
-    localparam integer FRAME_BEATS      = FRAME_PIXELS / PIXELS_PER_BEAT;
-    localparam integer TOTAL_BURSTS     = FRAME_BEATS / BURST_BEATS;
+    localparam integer PIXELS_PER_BEAT  = AXI_DATA_WIDTH / 32;            // 8
+    localparam integer FRAME_PIXELS     = H_RES * V_RES;                  // 2073600
+    localparam integer FRAME_BEATS      = FRAME_PIXELS / PIXELS_PER_BEAT;  // 259200
+    localparam integer TOTAL_BURSTS     = FRAME_BEATS / BURST_BEATS;       // 4050
     localparam [7:0]   AXI_LEN          = BURST_BEATS - 1;
     localparam [13:0]  FIFO_START_LEVEL = 14'd4096;
     localparam [10:0]  RD_FIFO_WR_SAFE_LEVEL = 11'd832;
-
-    // DEBUG: set to 1'b1 to freeze after the first complete frame.
-    // Default 0 for normal continuous 720p video transmission.
-    localparam DEBUG_FREEZE_AFTER_FIRST_FRAME = 1'b0;
 
     localparam [3:0]
         ST_IDLE  = 4'd0,
@@ -1166,7 +1278,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
     assign m_axi_arid    = {AXI_ID_WIDTH{1'b0}};
     assign m_axi_awlen   = AXI_LEN;
     assign m_axi_arlen   = AXI_LEN;
-    assign m_axi_awsize  = 3'b101;
+    assign m_axi_awsize  = 3'b101; // 256bit = 32 bytes
     assign m_axi_arsize  = 3'b101;
     assign m_axi_awburst = 2'b01;
     assign m_axi_arburst = 2'b01;
@@ -1176,6 +1288,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
     reg [15:0] wr_burst_idx;
     reg [15:0] rd_burst_idx;
     reg [7:0]  beat_idx;
+    reg        doing_write;
 
     assign m_axi_awaddr = {{(AXI_ADDR_WIDTH-27){1'b0}}, wr_burst_idx, 11'b0};
     assign m_axi_araddr = {{(AXI_ADDR_WIDTH-27){1'b0}}, rd_burst_idx, 11'b0};
@@ -1188,7 +1301,6 @@ module roralink_video_to_ddr_hdmi_b2 #(
 
     assign rd_fifo_wr_count_dbg = {5'd0, rd_fifo_wnum};
     assign rd_fifo_rd_count_dbg = {2'd0, rd_fifo_rnum};
-    assign wr_fifo_wr_count_dbg = {4'd0, wr_fifo_wnum};
     assign wr_fifo_rd_count_dbg = {4'd0, wr_fifo_rnum};
 
     assign rd_fifo_rden = display_started && display_de && !rd_fifo_empty;
@@ -1213,7 +1325,8 @@ module roralink_video_to_ddr_hdmi_b2 #(
         end
     end
 
-    // AXI write/read FSM.
+    // AXI write/read FSM. Single outstanding burst; read FIFO is prioritized
+    // once the first frame has been written, but write FIFO high-water is also serviced.
     always @(posedge axi_clk) begin
         if (axi_rst) begin
             state               <= ST_IDLE;
@@ -1229,6 +1342,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
             wr_burst_idx        <= 16'd0;
             rd_burst_idx        <= 16'd0;
             beat_idx            <= 8'd0;
+            doing_write         <= 1'b0;
             state_dbg           <= ST_IDLE;
             wr_burst_idx_dbg    <= 16'd0;
             rd_burst_idx_dbg    <= 16'd0;
@@ -1249,18 +1363,21 @@ module roralink_video_to_ddr_hdmi_b2 #(
 
                     if (!first_frame_written) begin
                         if (wr_burst_available) begin
+                            doing_write   <= 1'b1;
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end
                     end else begin
-                        if (!DEBUG_FREEZE_AFTER_FIRST_FRAME &&
-                            (wr_fifo_rnum >= 12'd1024) && wr_burst_available) begin
+                        if ((wr_fifo_rnum >= 12'd1024) && wr_burst_available) begin
+                            doing_write   <= 1'b1;
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end else if (rd_fifo_has_space) begin
+                            doing_write   <= 1'b0;
                             m_axi_arvalid <= 1'b1;
                             state         <= ST_RD_AR;
-                        end else if (!DEBUG_FREEZE_AFTER_FIRST_FRAME && wr_burst_available) begin
+                        end else if (wr_burst_available) begin
+                            doing_write   <= 1'b1;
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end
@@ -1354,7 +1471,9 @@ module roralink_video_to_ddr_hdmi_b2 #(
                     error_seen    <= 1'b1;
                 end
 
-                default: state <= ST_ERROR;
+                default: begin
+                    state <= ST_ERROR;
+                end
             endcase
         end
     end

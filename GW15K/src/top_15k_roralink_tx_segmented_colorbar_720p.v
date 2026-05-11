@@ -118,8 +118,8 @@ localparam [11:0] SEG_GAP_CYCLES     = 12'd4;
 // 6.25G  RoraLink user clock ~= 156.25MHz: 156.25MHz / (720*60) ~= 3617 cycles/line.
 // 3.125G RoraLink user clock ~=  78.125MHz: 78.125MHz / (720*60) ~= 1808 cycles/line.
 // Default below is for 6.25G. Set LINK_RATE_IS_3G125 to 1'b1 only when both
-// 15K/60K RoraLink IPs are regenerated as 3.125G. 
-localparam        LINK_RATE_IS_3G125 = 1'b1;
+// 15K/60K RoraLink IPs are regenerated as 3.125G.
+localparam        LINK_RATE_IS_3G125 = 1'b0;
 localparam [11:0] LINE_GAP_CYCLES    = LINK_RATE_IS_3G125 ? 12'd488 : 12'd2296;
 
 localparam [1:0] ST_WAIT  = 2'd0;
