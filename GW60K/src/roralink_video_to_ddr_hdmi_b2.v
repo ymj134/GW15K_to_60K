@@ -1,5 +1,11 @@
 `timescale 1ns / 1ps
 
+// 720p B2-DB-fix2 double-buffer bridge.
+// Main change from B2-DB-fix1: RX capture is now frame-aware.
+// The bridge only accepts a new input frame when the DDR writer has a free
+// write buffer and the write FIFO is near empty. If no write buffer is free,
+// the whole incoming frame is dropped at the packet layer instead of allowing
+// the write FIFO to overflow and corrupt framebuffer alignment.
 module roralink_video_to_ddr_hdmi_b2 #(
     parameter integer AXI_ADDR_WIDTH = 29,
     parameter integer AXI_DATA_WIDTH = 256,
@@ -71,6 +77,10 @@ module roralink_video_to_ddr_hdmi_b2 #(
     output wire [15:0]                  rd_fifo_rd_count_dbg,
     output wire [15:0]                  wr_fifo_wr_count_dbg,
     output wire [15:0]                  wr_fifo_rd_count_dbg,
+    output wire                         db_wr_buf_sel_dbg,
+    output wire                         db_rd_buf_sel_dbg,
+    output wire                         db_pending_valid_dbg,
+    output wire                         db_pending_buf_sel_dbg,
     output reg [31:0]                   rx_packet_cnt_dbg,
     output reg [31:0]                   rx_crc_pass_cnt_dbg,
     output reg [15:0]                   rx_good_seg_cnt_dbg,
@@ -85,7 +95,9 @@ module roralink_video_to_ddr_hdmi_b2 #(
     output wire                         rx_header_err_seen_dbg,
     output wire                         rx_last_err_seen_dbg,
     output wire                         rx_crc_err_seen_dbg,
-    output wire                         rx_overrun_err_seen_dbg
+    output wire                         rx_overrun_err_seen_dbg,
+    output wire                         rx_frame_accept_allowed_dbg,
+    output wire                         rx_drop_frame_active_dbg
 );
     localparam [31:0] MAGIC            = 32'hA55A_6002;
     localparam [7:0]  FORMAT_RGB888_32 = 8'h01;
@@ -191,6 +203,25 @@ module roralink_video_to_ddr_hdmi_b2 #(
     reg crc_err_seen     = 1'b0;
     reg strb_err_seen    = 1'b0;
     reg overrun_err_seen = 1'b0;
+    reg drop_frame_active = 1'b0;
+
+    // AXI-domain free-buffer level synchronized into rx_clk.
+    // The RX packet layer samples this only at a clean frame boundary
+    // (line_id=0, seg_id=0), then either accepts the whole frame or drops it.
+    wire capture_frame_available_axi;
+    reg [2:0] capture_frame_available_rx_sync = 3'b000;
+    always @(posedge rx_clk or posedge rx_rst_base) begin
+        if (rx_rst_base)
+            capture_frame_available_rx_sync <= 3'b000;
+        else
+            capture_frame_available_rx_sync <= {capture_frame_available_rx_sync[1:0], capture_frame_available_axi};
+    end
+
+    // Do not start a new frame if the async write FIFO still contains many
+    // beats from the previous frame. This prevents a late DDR writer from
+    // letting a new frame pile up and overflow the FIFO.
+    wire rx_wr_fifo_start_room = !wr_fifo_full && !wr_fifo_afull && (wr_fifo_wnum <= 12'd64);
+    wire rx_can_start_frame    = capture_frame_available_rx_sync[2] && rx_wr_fifo_start_room;
 
     wire [11:0] payload_pos    = word_idx - HEADER_WORDS;
     wire        payload_region = (word_idx >= HEADER_WORDS) &&
@@ -243,6 +274,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
             crc_err_seen        <= 1'b0;
             strb_err_seen       <= 1'b0;
             overrun_err_seen    <= 1'b0;
+            drop_frame_active   <= 1'b0;
         end else begin
             rx_fifo_wren <= 1'b0;
 
@@ -250,6 +282,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
                 rx_aligned       <= 1'b0;
                 capture_active   <= 1'b0;
                 capture_this_pkt <= 1'b0;
+                drop_frame_active<= 1'b0;
                 word_idx         <= 12'd0;
                 rx_test_pass     <= 1'b0;
             end else begin
@@ -292,12 +325,23 @@ module roralink_video_to_ddr_hdmi_b2 #(
                                 header_err_seen  <= 1'b1;
                             end
 
-                            // Start DDR capture from a clean frame boundary.
-                            // Once started, continue writing subsequent packets.
+                            // Start DDR capture only at a clean frame boundary and only
+                            // when the AXI writer has a free buffer. If no buffer is
+                            // available, drop the whole incoming frame until the next SOF.
+                            // This prevents FIFO overrun from shifting framebuffer address 0
+                            // into the middle of a video frame.
                             if (packet_magic_ok && (w1_line == 11'd0) && (w1_seg == 5'd0)) begin
-                                capture_active   <= 1'b1;
-                                capture_this_pkt <= 1'b1;
-                                rx_pack_reg      <= 256'd0;
+                                if (rx_can_start_frame) begin
+                                    capture_active    <= 1'b1;
+                                    capture_this_pkt  <= 1'b1;
+                                    drop_frame_active <= 1'b0;
+                                    rx_pack_reg       <= 256'd0;
+                                end else begin
+                                    capture_active    <= 1'b0;
+                                    capture_this_pkt  <= 1'b0;
+                                    drop_frame_active <= 1'b1;
+                                    rx_pack_reg       <= 256'd0;
+                                end
                             end else begin
                                 capture_this_pkt <= capture_active && packet_magic_ok;
                             end
@@ -331,8 +375,10 @@ module roralink_video_to_ddr_hdmi_b2 #(
                                 rx_pack_reg <= rx_pack_next;
                                 if (payload_pos[2:0] == 3'd7) begin
                                     if (wr_fifo_full) begin
-                                        overrun_err_seen <= 1'b1;
-                                        capture_active   <= 1'b0;
+                                        overrun_err_seen  <= 1'b1;
+                                        capture_active    <= 1'b0;
+                                        capture_this_pkt  <= 1'b0;
+                                        drop_frame_active <= 1'b1;
                                     end else begin
                                         rx_fifo_wdata <= rx_pack_next;
                                         rx_fifo_wren  <= 1'b1;
@@ -352,6 +398,14 @@ module roralink_video_to_ddr_hdmi_b2 #(
                                 if (rx_good_seg_cnt != 16'hFFFF)
                                     rx_good_seg_cnt <= rx_good_seg_cnt + 1'b1;
                                 rx_good_seg_cnt_dbg <= rx_good_seg_cnt + 1'b1;
+                            end
+
+                            // End of a complete 720p frame. After this point the next
+                            // frame must be explicitly accepted again at line0/seg0.
+                            if ((cur_line_id == LAST_LINE) && (cur_seg_id == LAST_SEG)) begin
+                                capture_active    <= 1'b0;
+                                capture_this_pkt  <= 1'b0;
+                                drop_frame_active <= 1'b0;
                             end
 
                             word_idx <= 12'd0;
@@ -393,14 +447,22 @@ module roralink_video_to_ddr_hdmi_b2 #(
     assign rx_capture_active_dbg    = capture_active;
     assign rx_payload_accept_dbg    = payload_accept;
     assign rx_wr_fifo_wren_dbg      = rx_fifo_wren;
-    assign rx_header_err_seen_dbg   = header_err_seen;
-    assign rx_last_err_seen_dbg     = last_err_seen;
-    assign rx_crc_err_seen_dbg      = crc_err_seen;
-    assign rx_overrun_err_seen_dbg  = overrun_err_seen;
+    assign rx_header_err_seen_dbg        = header_err_seen;
+    assign rx_last_err_seen_dbg          = last_err_seen;
+    assign rx_crc_err_seen_dbg           = crc_err_seen;
+    assign rx_overrun_err_seen_dbg       = overrun_err_seen;
+    assign rx_frame_accept_allowed_dbg   = rx_can_start_frame;
+    assign rx_drop_frame_active_dbg      = drop_frame_active;
 
     // DDR read-side FIFO: 256bit clk_out -> 32bit pixel_clk.
-    wire        rd_fifo_rst = axi_rst | !first_frame_written;
-    reg         rd_fifo_wren;
+    // B2-DB-fix2: restart the DDR reader and clear this FIFO at each HDMI
+    // frame_start. This keeps DDR address 0 aligned with HDMI x=0/y=0 and
+    // avoids mixing the tail of one buffer with the head of another buffer.
+    reg        rd_stream_aligned;
+    reg  [7:0] rd_fifo_rst_cnt;
+    wire       rd_fifo_restart_active = (rd_fifo_rst_cnt != 8'd0);
+    wire       rd_fifo_rst = axi_rst | !first_frame_written | !rd_stream_aligned | rd_fifo_restart_active;
+    reg        rd_fifo_wren;
     wire [31:0] rd_fifo_q;
     wire        rd_fifo_empty;
     wire        rd_fifo_full;
@@ -430,6 +492,9 @@ module roralink_video_to_ddr_hdmi_b2 #(
     localparam integer FRAME_PIXELS     = H_RES * V_RES;
     localparam integer FRAME_BEATS      = FRAME_PIXELS / PIXELS_PER_BEAT;
     localparam integer TOTAL_BURSTS     = FRAME_BEATS / BURST_BEATS;
+    localparam integer FRAME_BYTES      = FRAME_PIXELS * 4;
+    localparam [AXI_ADDR_WIDTH-1:0] BUFFER0_BASE = {AXI_ADDR_WIDTH{1'b0}};
+    localparam [AXI_ADDR_WIDTH-1:0] BUFFER1_BASE = FRAME_BYTES;
     localparam [7:0]   AXI_LEN          = BURST_BEATS - 1;
     localparam [13:0]  FIFO_START_LEVEL = 14'd4096;
     localparam [10:0]  RD_FIFO_WR_SAFE_LEVEL = 11'd832;
@@ -462,14 +527,73 @@ module roralink_video_to_ddr_hdmi_b2 #(
     reg [15:0] rd_burst_idx;
     reg [7:0]  beat_idx;
 
-    assign m_axi_awaddr = {{(AXI_ADDR_WIDTH-27){1'b0}}, wr_burst_idx, 11'b0};
-    assign m_axi_araddr = {{(AXI_ADDR_WIDTH-27){1'b0}}, rd_burst_idx, 11'b0};
+    // Double-buffer control in AXI clock domain.
+    // Buffer size for 720p RGB888_32 is H_RES*V_RES*4 bytes = 0x0038_4000.
+    // buffer0: 0x0000_0000
+    // buffer1: 0x0038_4000
+    reg wr_buf_sel;
+    reg rd_buf_sel;
+    reg db_pending_valid;
+    reg db_pending_buf_sel;
+
+    assign db_wr_buf_sel_dbg       = wr_buf_sel;
+    assign db_rd_buf_sel_dbg       = rd_buf_sel;
+    assign db_pending_valid_dbg    = db_pending_valid;
+    assign db_pending_buf_sel_dbg  = db_pending_buf_sel;
+
+    // --------------------------------------------------------------------
+    // HDMI frame_start CDC: pixel_clk -> axi_clk
+    // --------------------------------------------------------------------
+    // display_frame_start is a one-pixel-clock pulse at the start of the
+    // HDMI timing frame. Convert it to a toggle, synchronize into axi_clk,
+    // and create a one-cycle request. The AXI FSM consumes the request only
+    // from ST_IDLE, then restarts the DDR read stream from address 0.
+    reg frame_start_toggle_pix;
+    always @(posedge pixel_clk or posedge pixel_rst) begin
+        if (pixel_rst)
+            frame_start_toggle_pix <= 1'b0;
+        else if (display_frame_start)
+            frame_start_toggle_pix <= ~frame_start_toggle_pix;
+    end
+
+    reg [2:0] frame_start_sync_axi;
+    wire hdmi_frame_start_axi = frame_start_sync_axi[2] ^ frame_start_sync_axi[1];
+    reg  hdmi_frame_start_req;
+
+    always @(posedge axi_clk) begin
+        if (axi_rst)
+            frame_start_sync_axi <= 3'b000;
+        else
+            frame_start_sync_axi <= {frame_start_sync_axi[1:0], frame_start_toggle_pix};
+    end
+
+    wire [AXI_ADDR_WIDTH-1:0] wr_burst_offset = {{(AXI_ADDR_WIDTH-27){1'b0}}, wr_burst_idx, 11'b0};
+    wire [AXI_ADDR_WIDTH-1:0] rd_burst_offset = {{(AXI_ADDR_WIDTH-27){1'b0}}, rd_burst_idx, 11'b0};
+    wire [AXI_ADDR_WIDTH-1:0] wr_buf_base     = wr_buf_sel ? BUFFER1_BASE : BUFFER0_BASE;
+    wire [AXI_ADDR_WIDTH-1:0] rd_buf_base     = rd_buf_sel ? BUFFER1_BASE : BUFFER0_BASE;
+
+    assign m_axi_awaddr = wr_buf_base + wr_burst_offset;
+    assign m_axi_araddr = rd_buf_base + rd_burst_offset;
     assign m_axi_wdata  = wr_fifo_q;
     assign m_axi_wlast  = m_axi_wvalid && (beat_idx == AXI_LEN);
 
     localparam [11:0] WR_BURST_LEVEL = BURST_BEATS;
     wire wr_burst_available = (wr_fifo_rnum >= WR_BURST_LEVEL);
     wire rd_fifo_has_space  = (rd_fifo_wnum <= RD_FIFO_WR_SAFE_LEVEL);
+
+    // In continuous mode, writer can only write to the buffer not currently read.
+    // If a completed frame is pending for display, writer stalls until reader
+    // switches at a read-frame boundary.
+    wire db_write_allowed = !DEBUG_FREEZE_AFTER_FIRST_FRAME &&
+                            !db_pending_valid &&
+                            (wr_buf_sel != rd_buf_sel);
+
+    // Free-buffer indication for the RX frame gate. It is asserted only when
+    // the AXI writer is at the beginning of a framebuffer and can accept a
+    // complete new frame. The signal is synchronized into rx_clk above.
+    assign capture_frame_available_axi = !axi_rst && !error_seen &&
+                                         (wr_burst_idx == 16'd0) &&
+                                         ((!first_frame_written) || db_write_allowed);
 
     assign rd_fifo_wr_count_dbg = {5'd0, rd_fifo_wnum};
     assign rd_fifo_rd_count_dbg = {2'd0, rd_fifo_rnum};
@@ -480,6 +604,10 @@ module roralink_video_to_ddr_hdmi_b2 #(
     assign pixel_word   = (display_started && display_de && rd_fifo_empty) ? 32'h00FF_0000 : rd_fifo_q;
 
     // Pixel-domain display start and underflow detect.
+    // Start display only after the read FIFO has been pre-filled. For DB-fix1
+    // the read FIFO is restarted at HDMI frame_start in the AXI domain, then
+    // the vertical blanking interval gives the DDR reader time to pre-fill it
+    // before active video starts.
     reg first_frame_written_p1;
     reg first_frame_written_p2;
     always @(posedge pixel_clk or posedge pixel_rst) begin
@@ -491,8 +619,15 @@ module roralink_video_to_ddr_hdmi_b2 #(
         end else begin
             first_frame_written_p1 <= first_frame_written;
             first_frame_written_p2 <= first_frame_written_p1;
-            if (!display_started && first_frame_written_p2 && (rd_fifo_rnum >= FIFO_START_LEVEL) && display_frame_start)
+
+            // Do not require another frame_start here. The FIFO restart itself
+            // is aligned to frame_start; display can be enabled as soon as
+            // the FIFO has enough pixels during blanking.
+            if (!display_started && first_frame_written_p2 &&
+                (rd_fifo_rnum >= FIFO_START_LEVEL) && !display_de) begin
                 display_started <= 1'b1;
+            end
+
             if (display_started && display_de && rd_fifo_empty)
                 underflow_seen <= 1'b1;
         end
@@ -514,12 +649,26 @@ module roralink_video_to_ddr_hdmi_b2 #(
             wr_burst_idx        <= 16'd0;
             rd_burst_idx        <= 16'd0;
             beat_idx            <= 8'd0;
+            wr_buf_sel          <= 1'b0;
+            rd_buf_sel          <= 1'b0;
+            db_pending_valid    <= 1'b0;
+            db_pending_buf_sel  <= 1'b0;
+            rd_stream_aligned   <= 1'b0;
+            rd_fifo_rst_cnt     <= 8'd0;
+            hdmi_frame_start_req<= 1'b0;
             state_dbg           <= ST_IDLE;
             wr_burst_idx_dbg    <= 16'd0;
             rd_burst_idx_dbg    <= 16'd0;
         end else begin
             wr_fifo_rden     <= 1'b0;
             rd_fifo_wren     <= 1'b0;
+
+            if (rd_fifo_rst_cnt != 8'd0)
+                rd_fifo_rst_cnt <= rd_fifo_rst_cnt - 1'b1;
+
+            if (hdmi_frame_start_axi && first_frame_written)
+                hdmi_frame_start_req <= 1'b1;
+
             state_dbg        <= state;
             wr_burst_idx_dbg <= wr_burst_idx;
             rd_burst_idx_dbg <= rd_burst_idx;
@@ -533,19 +682,38 @@ module roralink_video_to_ddr_hdmi_b2 #(
                     m_axi_rready  <= 1'b0;
 
                     if (!first_frame_written) begin
+                        // Fill buffer0 first. HDMI reader is disabled until this frame completes.
                         if (wr_burst_available) begin
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end
                     end else begin
-                        if (!DEBUG_FREEZE_AFTER_FIRST_FRAME &&
-                            (wr_fifo_rnum >= 12'd1024) && wr_burst_available) begin
+                        // B2-DB-fix2:
+                        // At every HDMI frame_start, restart the DDR read stream from
+                        // address 0 of the selected read buffer and clear the read FIFO.
+                        // If a newly written frame is pending, switch to it here. This
+                        // makes HDMI x=0/y=0 align with framebuffer address 0.
+                        if (hdmi_frame_start_req) begin
+                            if (db_pending_valid) begin
+                                rd_buf_sel          <= db_pending_buf_sel;
+                                db_pending_valid    <= 1'b0;
+                            end
+                            rd_burst_idx         <= 16'd0;
+                            rd_stream_aligned    <= 1'b1;
+                            rd_fifo_rst_cnt      <= 8'd128;
+                            hdmi_frame_start_req <= 1'b0;
+
+                        end else if (db_write_allowed &&
+                                     (wr_fifo_rnum >= 12'd1024) &&
+                                     wr_burst_available) begin
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
-                        end else if (rd_fifo_has_space) begin
+
+                        end else if (rd_stream_aligned && !rd_fifo_restart_active && rd_fifo_has_space) begin
                             m_axi_arvalid <= 1'b1;
                             state         <= ST_RD_AR;
-                        end else if (!DEBUG_FREEZE_AFTER_FIRST_FRAME && wr_burst_available) begin
+
+                        end else if (db_write_allowed && wr_burst_available) begin
                             m_axi_awvalid <= 1'b1;
                             state         <= ST_WR_AW;
                         end
@@ -588,8 +756,21 @@ module roralink_video_to_ddr_hdmi_b2 #(
                             state      <= ST_ERROR;
                         end else begin
                             if (wr_burst_idx == TOTAL_BURSTS - 1) begin
-                                wr_burst_idx        <= 16'd0;
-                                first_frame_written <= 1'b1;
+                                wr_burst_idx <= 16'd0;
+
+                                if (!first_frame_written) begin
+                                    // First completed frame becomes the initial display buffer.
+                                    first_frame_written <= 1'b1;
+                                    rd_buf_sel          <= wr_buf_sel;
+                                    wr_buf_sel          <= ~wr_buf_sel;
+                                    db_pending_valid    <= 1'b0;
+                                end else begin
+                                    // A full frame has been written to wr_buf_sel.
+                                    // Mark it pending; reader will switch on an HDMI frame_start restart.
+                                    db_pending_buf_sel  <= wr_buf_sel;
+                                    db_pending_valid    <= 1'b1;
+                                    wr_buf_sel          <= ~wr_buf_sel;
+                                end
                             end else begin
                                 wr_burst_idx <= wr_burst_idx + 1'b1;
                             end
@@ -618,10 +799,14 @@ module roralink_video_to_ddr_hdmi_b2 #(
                             rd_fifo_wren <= 1'b1;
                             if (m_axi_rlast) begin
                                 m_axi_rready <= 1'b0;
-                                if (rd_burst_idx == TOTAL_BURSTS - 1)
+                                if (rd_burst_idx == TOTAL_BURSTS - 1) begin
+                                    // Reader loops through the same selected buffer.
+                                    // Buffer selection is changed only on HDMI frame_start
+                                    // in ST_IDLE, where the read FIFO is also cleared.
                                     rd_burst_idx <= 16'd0;
-                                else
+                                end else begin
                                     rd_burst_idx <= rd_burst_idx + 1'b1;
+                                end
                                 state <= ST_IDLE;
                             end
                         end

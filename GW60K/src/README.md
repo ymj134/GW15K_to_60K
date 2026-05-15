@@ -1,26 +1,41 @@
-# GW60K modular 720p B2 split
+GW60K 720p B2-DB-fix2 modified files
+=====================================
 
-This package is a first-pass structural split of the current monolithic `GW60K/src/top.v`.
+Replace only these files in GW60K/src:
 
-Functional intent is unchanged:
+- top.v
+- roralink_video_to_ddr_hdmi_b2.v
 
-- 15K RoraLink segmented RGB888_32 RX
-- RX 32-bit pixel payload pack to 256-bit beat
-- RX clock to DDR `clk_out` through `Video_WR_FIFO_256`
-- AXI write to DDR framebuffer
-- AXI read from DDR framebuffer
-- DDR `clk_out` to HDMI `pixel_clk` through `Video_FIFO_256to32`
-- ADV7513 720p60 output
+Main change from B2-DB-fix1
+---------------------------
 
-Files:
+The RX side is now frame-aware:
 
-- `top.v` — board-level top, connections, LED, ILA signals only
-- `clock_reset_60k.v` — 50MHz reset sync, pixel PLL, DDR PLL/MDPR glue
-- `ddr3_axi_wrapper_60k.v` — DDR3_Memory_Interface_Top wrapper
-- `roralink_rx_wrapper.v` — SerDes_Top / RoraLink RX-only wrapper
-- `hdmi_720p_timing.v` — 720p60 timing generator
-- `hdmi_output_stage.v` — registered HDMI output RGB/HS/VS/DE stage
-- `adv7513_iic_wrapper.v` — ADV7513 I2C initialization wrapper
-- `roralink_video_to_ddr_hdmi_b2.v` — original B2 bridge moved out unchanged internally
+1. At the start of each incoming frame (line_id=0, seg_id=0), the RX parser checks whether the AXI/DDR writer has a free framebuffer and whether the write FIFO is near empty.
+2. If a free buffer is available, the whole frame is accepted and written to DDR.
+3. If no free buffer is available, the whole incoming frame is dropped at the packet layer.
+4. This prevents Video_WR_FIFO_256 from overflowing and prevents a partial frame from shifting framebuffer address 0 into the middle of the colorbar.
 
-Add all `.v` files to the GW60K project and use this `top.v` as the top module.
+Version marker
+--------------
+
+ila60b2_top_version = 32'h60B2_DB12
+
+New debug signals
+-----------------
+
+- ila60b2_rx_frame_accept_allowed
+- ila60b2_rx_drop_frame_active
+
+Recommended quick check
+-----------------------
+
+Use RX-domain ILA with rl_rx_clk. Trigger on:
+
+    ila60b2_rx_overrun_err_seen == 1
+
+Expected after fix2:
+
+- ila60b2_rx_overrun_err_seen should stay 0.
+- ila60b2_rx_drop_frame_active may pulse when no free DDR buffer is available.
+- HDMI x=0 should return to FFFFFF for the leftmost white colorbar.

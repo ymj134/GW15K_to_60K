@@ -1,5 +1,5 @@
 // ============================================================================
-// GW5AT-60K B2 modular top: 15K RoraLink segmented video RX -> DDR3 -> HDMI
+// GW5AT-60K B2-DB-fix2 modular top: 15K RoraLink segmented video RX -> DDR3 -> HDMI
 // ----------------------------------------------------------------------------
 // First-pass modular split from the verified monolithic 720p B2 top.
 // Function is intended to stay unchanged.
@@ -255,6 +255,10 @@ wire [15:0] fb_rd_fifo_wr_count;
 wire [15:0] fb_rd_fifo_rd_count;
 wire [15:0] fb_wr_fifo_rd_count;
 wire [15:0] fb_wr_fifo_wr_count;
+wire        db_wr_buf_sel;
+wire        db_rd_buf_sel;
+wire        db_pending_valid;
+wire        db_pending_buf_sel;
 wire [31:0] rx_packet_cnt;
 wire [31:0] rx_crc_pass_cnt;
 wire [15:0] rx_good_seg_cnt;
@@ -270,6 +274,8 @@ wire        rx_header_err_seen_dbg;
 wire        rx_last_err_seen_dbg;
 wire        rx_crc_err_seen_dbg;
 wire        rx_overrun_err_seen_dbg;
+wire        rx_frame_accept_allowed_dbg;
+wire        rx_drop_frame_active_dbg;
 
 roralink_video_to_ddr_hdmi_b2 #(
     .AXI_ADDR_WIDTH (29),
@@ -341,6 +347,10 @@ roralink_video_to_ddr_hdmi_b2 #(
     .rd_fifo_rd_count_dbg (fb_rd_fifo_rd_count),
     .wr_fifo_wr_count_dbg (fb_wr_fifo_wr_count),
     .wr_fifo_rd_count_dbg (fb_wr_fifo_rd_count),
+    .db_wr_buf_sel_dbg    (db_wr_buf_sel),
+    .db_rd_buf_sel_dbg    (db_rd_buf_sel),
+    .db_pending_valid_dbg (db_pending_valid),
+    .db_pending_buf_sel_dbg(db_pending_buf_sel),
     .rx_packet_cnt_dbg    (rx_packet_cnt),
     .rx_crc_pass_cnt_dbg  (rx_crc_pass_cnt),
     .rx_good_seg_cnt_dbg  (rx_good_seg_cnt),
@@ -355,7 +365,9 @@ roralink_video_to_ddr_hdmi_b2 #(
     .rx_header_err_seen_dbg(rx_header_err_seen_dbg),
     .rx_last_err_seen_dbg (rx_last_err_seen_dbg),
     .rx_crc_err_seen_dbg  (rx_crc_err_seen_dbg),
-    .rx_overrun_err_seen_dbg(rx_overrun_err_seen_dbg)
+    .rx_overrun_err_seen_dbg(rx_overrun_err_seen_dbg),
+    .rx_frame_accept_allowed_dbg(rx_frame_accept_allowed_dbg),
+    .rx_drop_frame_active_dbg(rx_drop_frame_active_dbg)
 );
 
 // --------------------------------------------------------------------------
@@ -418,7 +430,7 @@ assign O_led[1] = any_bad ? led_cnt[22] : (video_ok ? 1'b0 : led_cnt[25]);
 //   AXI-domain : clk_out     -> ila60b2_fb_*, ila60b2_*fifo*, ila60b2_bresp/rresp
 //   HDMI-domain: pixel_clk   -> ila60b2_hdmi_*, ila60b2_display_started
 // --------------------------------------------------------------------------
-(* keep = "true" *) wire [31:0] ila60b2_top_version             = 32'h60B2_7203;
+(* keep = "true" *) wire [31:0] ila60b2_top_version             = 32'h60B2_DB12;
 
 // RoraLink RX-domain essentials
 (* keep = "true" *) wire        ila60b2_rl_channel_up           = rl_channel_up;
@@ -448,6 +460,8 @@ assign O_led[1] = any_bad ? led_cnt[22] : (video_ok ? 1'b0 : led_cnt[25]);
 (* keep = "true" *) wire        ila60b2_rx_last_err_seen        = rx_last_err_seen_dbg;
 (* keep = "true" *) wire        ila60b2_rx_crc_err_seen         = rx_crc_err_seen_dbg;
 (* keep = "true" *) wire        ila60b2_rx_overrun_err_seen     = rx_overrun_err_seen_dbg;
+(* keep = "true" *) wire        ila60b2_rx_frame_accept_allowed = rx_frame_accept_allowed_dbg;
+(* keep = "true" *) wire        ila60b2_rx_drop_frame_active    = rx_drop_frame_active_dbg;
 
 // AXI/DDR framebuffer state
 (* keep = "true" *) wire        ila60b2_init_calib_complete     = init_calib_complete;
@@ -456,6 +470,10 @@ assign O_led[1] = any_bad ? led_cnt[22] : (video_ok ? 1'b0 : led_cnt[25]);
 (* keep = "true" *) wire [3:0]  ila60b2_fb_state                = fb_state;
 (* keep = "true" *) wire [15:0] ila60b2_wr_burst_idx            = fb_wr_burst_idx;
 (* keep = "true" *) wire [15:0] ila60b2_rd_burst_idx            = fb_rd_burst_idx;
+(* keep = "true" *) wire        ila60b2_db_wr_buf_sel            = db_wr_buf_sel;
+(* keep = "true" *) wire        ila60b2_db_rd_buf_sel            = db_rd_buf_sel;
+(* keep = "true" *) wire        ila60b2_db_pending_valid         = db_pending_valid;
+(* keep = "true" *) wire        ila60b2_db_pending_buf_sel       = db_pending_buf_sel;
 (* keep = "true" *) wire [15:0] ila60b2_wr_fifo_wr_count        = fb_wr_fifo_wr_count;
 (* keep = "true" *) wire [15:0] ila60b2_wr_fifo_rd_count        = fb_wr_fifo_rd_count;
 (* keep = "true" *) wire [15:0] ila60b2_rd_fifo_wr_count        = fb_rd_fifo_wr_count;
