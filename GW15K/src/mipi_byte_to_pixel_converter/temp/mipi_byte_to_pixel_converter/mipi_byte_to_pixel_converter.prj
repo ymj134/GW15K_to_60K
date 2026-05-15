@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gowin-synthesis-project>
+<Project>
+    <Version>beta</Version>
+    <Device id="GW5AT-15B" package="MBGA132" speed="1" partNumber="GW5AT-LV15MG132C1/I0"/>
+    <FileList>
+        <File path="D:/Gowin/Gowin_V1.9.12.02_SP2_x64/IDE/ipcore/MIPI_BYTE_TO_PIXEL/data/byte_to_pixel.v" type="verilog"/>
+        <File path="D:/Gowin/Gowin_V1.9.12.02_SP2_x64/IDE/ipcore/MIPI_BYTE_TO_PIXEL/data/byte_to_pixel_wrap.v" type="verilog"/>
+    </FileList>
+    <OptionList>
+        <Option type="disable_insert_pad" value="1"/>
+        <Option type="include_path" value="D:/Gowin/Gowin_V1.9.12.02_SP2_x64/IDE/ipcore/MIPI_BYTE_TO_PIXEL/data"/>
+        <Option type="include_path" value="E:/ymj_project/serdes/GW15K_to_60K/GW15K/src/mipi_byte_to_pixel_converter/temp/mipi_byte_to_pixel_converter"/>
+        <Option type="ip_version" value="1.1"/>
+        <Option type="output_file" value="mipi_byte_to_pixel_converter.vg"/>
+        <Option type="output_template" value="mipi_byte_to_pixel_converter_tmp.v"/>
+        <Option type="ram_balance" value="1"/>
+        <Option type="ram_rw_check" value="1"/>
+        <Option type="vcc" value="0.9"/>
+        <Option type="vccx" value="2.5"/>
+        <Option type="verilog_language" value="sysv-2017"/>
+    </OptionList>
+</Project>
