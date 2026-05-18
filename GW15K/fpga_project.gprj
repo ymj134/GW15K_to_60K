@@ -5,7 +5,19 @@
     <Version>5</Version>
     <Device name="GW5AT-15B" pn="GW5AT-LV15MG132C1/I0">gw5at15b-001</Device>
     <FileList>
+        <File path="src/Camera_Packet_FIFO_33/Camera_Packet_FIFO_33.v" type="file.verilog" enable="1"/>
+        <File path="src/I2C_ISPCAMERA_4Lanes_Config.v" type="file.verilog" enable="1"/>
+        <File path="src/MIPI_YUV422toRGB888.v" type="file.verilog" enable="1"/>
+        <File path="src/async_fifo_gray.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_crop_1080p_to_720p_pair.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_crop_1080p_to_720p_yuv422_pair.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_frame_monitor.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_packet_builder_720p.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_packet_fifo_tx_reader.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_stream_segment_packetizer.v" type="file.verilog" enable="1"/>
+        <File path="src/camera_yuv422_packet_builder_720p.v" type="file.verilog" enable="1"/>
         <File path="src/gowin_mipi_dphy/gowin_mipi_dphy.v" type="file.verilog" enable="1"/>
+        <File path="src/i2c_timing_ctrl_reg16_dat8_wronly.v" type="file.verilog" enable="1"/>
         <File path="src/mipi_byte_to_pixel_converter/mipi_byte_to_pixel_converter.v" type="file.verilog" enable="1"/>
         <File path="src/mipi_dsi_csi2_rx/mipi_dsi_csi2_rx.v" type="file.verilog" enable="1"/>
         <File path="src/roralink_tx_wrapper.v" type="file.verilog" enable="1"/>
@@ -16,6 +28,9 @@
         <File path="src/video_segment_packetizer.v" type="file.verilog" enable="1"/>
         <File path="src/fpga_project.cst" type="file.cst" enable="1"/>
         <File path="src/fpga_project.sdc" type="file.sdc" enable="1"/>
+        <File path="src/camera.rao" type="file.gao" enable="0"/>
+        <File path="src/camera1.rao" type="file.gao" enable="1"/>
+        <File path="src/camera1_tx.rao" type="file.gao" enable="0"/>
         <File path="src/sfp.rao" type="file.gao" enable="0"/>
     </FileList>
 </Project>

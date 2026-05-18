@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 
-// 720p B2-DB-fix2 double-buffer bridge.
-// Main change from B2-DB-fix1: RX capture is now frame-aware.
+// 720p B3-1-fix2 double-buffer bridge.
+// Main change from B2-DB-fix2: RoraLink payload is native YUV422 pair data.
+// The bridge converts YUV422 pairs to RGB888_32 before writing DDR.
 // The bridge only accepts a new input frame when the DDR writer has a free
 // write buffer and the write FIFO is near empty. If no write buffer is free,
 // the whole incoming frame is dropped at the packet layer instead of allowing
@@ -100,13 +101,15 @@ module roralink_video_to_ddr_hdmi_b2 #(
     output wire                         rx_drop_frame_active_dbg
 );
     localparam [31:0] MAGIC            = 32'hA55A_6002;
-    localparam [7:0]  FORMAT_RGB888_32 = 8'h01;
+    localparam [7:0]  FORMAT_YUV422_PAIR = 8'h02;
     localparam [11:0] H12              = 12'd1280;
     localparam [11:0] V12              = 12'd720;
     localparam [10:0] LAST_LINE        = 11'd719;
     localparam [4:0]  LAST_SEG         = 5'd4;
     localparam [11:0] SEG_PIXELS_FULL  = 12'd256;
     localparam [11:0] SEG_PIXELS_LAST  = 12'd256;
+    localparam [11:0] SEG_PAYLOAD_WORDS_FULL = 12'd128; // one YUV422 word carries two pixels
+    localparam [11:0] SEG_PAYLOAD_WORDS_LAST = 12'd128;
     localparam [11:0] HEADER_WORDS     = 12'd4;
     localparam [15:0] STABLE_DELAY_MAX = 16'h3FFF;
     localparam [15:0] PASS_SEG_TH      = 16'd512;
@@ -153,7 +156,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
     function [11:0] segment_payload_words;
         input [4:0] s;
         begin
-            segment_payload_words = (s == LAST_SEG) ? SEG_PIXELS_LAST : SEG_PIXELS_FULL;
+            segment_payload_words = (s == LAST_SEG) ? SEG_PAYLOAD_WORDS_LAST : SEG_PAYLOAD_WORDS_FULL;
         end
     endfunction
 
@@ -231,17 +234,60 @@ module roralink_video_to_ddr_hdmi_b2 #(
 
     assign rx_any_err_seen = header_err_seen | last_err_seen | crc_err_seen | strb_err_seen | overrun_err_seen;
 
+    // Convert one YUV422 32-bit payload word into two RGB888_32 pixels.
+    // Byte order matches the verified MIPI_YUV422toRGB888 module:
+    //   yuv[7:0]=U, yuv[15:8]=Y0, yuv[23:16]=V, yuv[31:24]=Y1.
+    function [7:0] clamp_rgb;
+        input [19:0] v;
+        begin
+            clamp_rgb = v[10] ? 8'd0 : ((v[9:0] > 10'd255) ? 8'd255 : v[7:0]);
+        end
+    endfunction
+
+    function [63:0] yuv422_to_rgb64;
+        input [31:0] yuv;
+        reg [19:0] Y0, Y1, U0, U1, V0, V1;
+        reg [19:0] r0, g0, b0;
+        reg [19:0] r1, g1, b1;
+        reg [7:0]  p0r, p0g, p0b;
+        reg [7:0]  p1r, p1g, p1b;
+        begin
+            Y0 = yuv[15:8]  * 20'd596;
+            Y1 = yuv[31:24] * 20'd596;
+            U0 = yuv[7:0]   * 20'd200;
+            U1 = yuv[7:0]   * 20'd1033;
+            V0 = yuv[23:16] * 20'd817;
+            V1 = yuv[23:16] * 20'd416;
+
+            r0 = (Y0 + V0 - 20'd114131) >> 9;
+            g0 = (Y0 - U0 - V1 + 20'd69370) >> 9;
+            b0 = (Y0 + U1 - 20'd141787) >> 9;
+            r1 = (Y1 + V0 - 20'd114131) >> 9;
+            g1 = (Y1 - U0 - V1 + 20'd69370) >> 9;
+            b1 = (Y1 + U1 - 20'd141787) >> 9;
+
+            p0r = clamp_rgb(r0);
+            p0g = clamp_rgb(g0);
+            p0b = clamp_rgb(b0);
+            p1r = clamp_rgb(r1);
+            p1g = clamp_rgb(g1);
+            p1b = clamp_rgb(b1);
+
+            // Lower 32 bits are the earlier pixel so Video_FIFO_256to32 reads
+            // pixels in raster order: pixel0, then pixel1.
+            yuv422_to_rgb64 = {8'h00, p1r, p1g, p1b, 8'h00, p0r, p0g, p0b};
+        end
+    endfunction
+
+    wire [63:0] rx_rgb_pair64 = yuv422_to_rgb64(rx_user_data);
+
     always @* begin
         rx_pack_next = rx_pack_reg;
-        case (payload_pos[2:0])
-            3'd0: rx_pack_next[31:0]    = rx_user_data;
-            3'd1: rx_pack_next[63:32]   = rx_user_data;
-            3'd2: rx_pack_next[95:64]   = rx_user_data;
-            3'd3: rx_pack_next[127:96]  = rx_user_data;
-            3'd4: rx_pack_next[159:128] = rx_user_data;
-            3'd5: rx_pack_next[191:160] = rx_user_data;
-            3'd6: rx_pack_next[223:192] = rx_user_data;
-            3'd7: rx_pack_next[255:224] = rx_user_data;
+        case (payload_pos[1:0])
+            2'd0: rx_pack_next[63:0]    = rx_rgb_pair64;
+            2'd1: rx_pack_next[127:64]  = rx_rgb_pair64;
+            2'd2: rx_pack_next[191:128] = rx_rgb_pair64;
+            2'd3: rx_pack_next[255:192] = rx_rgb_pair64;
         endcase
     end
 
@@ -350,7 +396,7 @@ module roralink_video_to_ddr_hdmi_b2 #(
                         if (word_idx == 12'd2) begin
                             cur_x_base        <= w2_x_base;
                             cur_payload_words <= w2_payload_words;
-                            if ((w2_format != FORMAT_RGB888_32) ||
+                            if ((w2_format != FORMAT_YUV422_PAIR) ||
                                 (w2_x_base != segment_x_base(cur_seg_id)) ||
                                 (w2_payload_words != segment_payload_words(cur_seg_id))) begin
                                 packet_header_ok <= 1'b0;
@@ -368,12 +414,12 @@ module roralink_video_to_ddr_hdmi_b2 #(
                         if (rx_user_strb != 4'hF)
                             strb_err_seen <= 1'b1;
 
-                        // B2_fix2: no payload comparison. If header says this is a
-                        // payload word, pack it and feed the DDR write FIFO.
+                        // B3-1-fix2: payload is YUV422 pair. Convert to two RGB888_32 pixels,
+                        // pack four YUV words into one 256-bit DDR write FIFO beat.
                         if (payload_region) begin
                             if (payload_accept) begin
                                 rx_pack_reg <= rx_pack_next;
-                                if (payload_pos[2:0] == 3'd7) begin
+                                if (payload_pos[1:0] == 2'd3) begin
                                     if (wr_fifo_full) begin
                                         overrun_err_seen  <= 1'b1;
                                         capture_active    <= 1'b0;

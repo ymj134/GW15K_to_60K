@@ -430,7 +430,7 @@ assign O_led[1] = any_bad ? led_cnt[22] : (video_ok ? 1'b0 : led_cnt[25]);
 //   AXI-domain : clk_out     -> ila60b2_fb_*, ila60b2_*fifo*, ila60b2_bresp/rresp
 //   HDMI-domain: pixel_clk   -> ila60b2_hdmi_*, ila60b2_display_started
 // --------------------------------------------------------------------------
-(* keep = "true" *) wire [31:0] ila60b2_top_version             = 32'h60B2_DB12;
+(* keep = "true" *) wire [31:0] ila60b2_top_version             = 32'h60B3_1201;
 
 // RoraLink RX-domain essentials
 (* keep = "true" *) wire        ila60b2_rl_channel_up           = rl_channel_up;
