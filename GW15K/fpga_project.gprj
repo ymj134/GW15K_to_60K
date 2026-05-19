@@ -29,7 +29,7 @@
         <File path="src/fpga_project.cst" type="file.cst" enable="1"/>
         <File path="src/fpga_project.sdc" type="file.sdc" enable="1"/>
         <File path="src/camera.rao" type="file.gao" enable="0"/>
-        <File path="src/camera1.rao" type="file.gao" enable="1"/>
+        <File path="src/camera1.rao" type="file.gao" enable="0"/>
         <File path="src/camera1_tx.rao" type="file.gao" enable="0"/>
         <File path="src/sfp.rao" type="file.gao" enable="0"/>
     </FileList>
